@@ -30,7 +30,7 @@ makedepends="
 
 _config="config-$_flavor.$arch"
 # Fx0 development integration; shared-SoC regression qualification is pending.
-_commit="b7575530db2d756ba1ad3e6e5757d3ac00494f1c"
+_commit="9ff315ebc274426f5630265c074c67b44c554f7d"
 
 # Source
 source="
@@ -66,6 +66,6 @@ package() {
 }
 
 sha512sums="
-3646fd506d9dbccb51a44f79b2a33c532c14bc6b3d5454591c71a184a59c586ac0e6b68189b1a7a0a33bb52d7b4434b0bf430097fffb473a4af2bb9441085e5e  linux-fx0-b7575530db2d756ba1ad3e6e5757d3ac00494f1c.tar.gz
-336cc8d2630e6d5defd544d69ecd4b2dd1e440dab01a03ebad8fe87cb8eaf9df68a61e2a07c66a8aed1a1b8c7c7a6ba4c3bd8c0189a37eb84163fea908a2afe9  config-postmarketos-qcom-msm8226.armv7
+0dce1a6e0a62dfa35fd58f7fea3ae6c0d2bb00ef8d434a53f732ef9d0df37e704a46b241ef83c28ef0d151121b8fbcb9fd643bfe79c08e0c1d1afa4fa2b8af0f  linux-fx0-9ff315ebc274426f5630265c074c67b44c554f7d.tar.gz
+570d79c0a416b142aed78f91658a84a65926d00054869a4155986ffa66f2d7772c95c1f2c8f436f31498480d8e9ec45a0535d8c8976f2bcbe95cfe4c9297bfb2  config-postmarketos-qcom-msm8226.armv7
 "
