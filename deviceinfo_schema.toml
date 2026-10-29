@@ -204,6 +204,14 @@ Android devices need the kernel and initramfs to be flashed to a dedicated parti
 datatype = "boolean"
 default_value = false
 
+[variable.flash.flash_bootimg_offset]
+description = """
+Byte offset within the boot partition for on-device Android boot-image updates. The prefix is preserved and excluded when checking image fit. Use the reserved prefix size from the installed bootloader build, such as 524288 for standard lk2nd. The value must be a non-negative decimal multiple of 512, without leading zeroes. Requires boot-deploy with offset support. This affects the on-device update write; lk2nd fastboot already applies its own offset.
+"""
+datatype = "integer"
+integer_interval = "[0, 9223372036854775807]"
+default_value = 0
+
 [variable.flash.bootimg_amazon_omap_header_size]
 description = "Prepend a certificate exploit header to boot.img, required by the exploit chain used for most OMAP based Amazon Kindles. Value is typically 1024, 848 for amazon-soho."
 datatype = "integer"
