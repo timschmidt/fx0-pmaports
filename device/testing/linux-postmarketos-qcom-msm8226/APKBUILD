@@ -2,12 +2,12 @@
 maintainer="Newbyte <newbie13xd@gmail.com>"
 _flavor="postmarketos-qcom-msm8226"
 pkgname=linux-$_flavor
-pkgver=6.16.12
+pkgver=6.18.59
 pkgrel=0
 pkgdesc="Mainline Kernel fork for APQ8026/MSM8226/MSM8926 devices"
 arch="armv7"
 _carch="arm"
-url="https://github.com/msm8226-mainline/linux"
+url="https://github.com/timschmidt/fx0-linux"
 license="GPL-2.0-only"
 options="!strip !check !tracedeps
 	pmb:cross-native
@@ -29,14 +29,15 @@ makedepends="
 "
 
 _config="config-$_flavor.$arch"
-_tag="v${pkgver/_/-}-msm8226"
+# Fx0 development integration; shared-SoC regression qualification is pending.
+_commit="52334e9f84c3e2425819f1ea20aa18eb42453e82"
 
 # Source
 source="
-	https://github.com/msm8226-mainline/linux/archive/$_tag/linux-$_tag.tar.gz
+	linux-fx0-$_commit.tar.gz::https://github.com/timschmidt/fx0-linux/archive/$_commit.tar.gz
 	$_config
 "
-builddir="$srcdir/linux-${_tag#v}"
+builddir="$srcdir/fx0-linux-$_commit"
 
 prepare() {
 	default_prepare
@@ -65,6 +66,6 @@ package() {
 }
 
 sha512sums="
-144aff6be5f6b465fa9e7426cea5ee586ef88a9e4881760c244b317057b555fa03889a646f3f47dbd025ac9a540589ecf5cc540623562c4a9219caf9f1545ec4  linux-v6.16.12-msm8226.tar.gz
-81160870e9a60b14c7f6796789328118485ee61083419d90a06cffeaaf6a10a4e140bf12cf8b0423265e93ca1301312c25881ee5c267328b1b6b6419638b15fc  config-postmarketos-qcom-msm8226.armv7
+1eb78d60404bb4c1f30c2f9f994f5608ef02c43fcc17b532d5ac99e79adfde05cd02fc321d7bb4fbf1f2879e086e1a1093a1292d858bab5123d5392b761268f7  linux-fx0-52334e9f84c3e2425819f1ea20aa18eb42453e82.tar.gz
+336cc8d2630e6d5defd544d69ecd4b2dd1e440dab01a03ebad8fe87cb8eaf9df68a61e2a07c66a8aed1a1b8c7c7a6ba4c3bd8c0189a37eb84163fea908a2afe9  config-postmarketos-qcom-msm8226.armv7
 "
