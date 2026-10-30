@@ -1,0 +1,30 @@
+From 1a3a5cefc4e76d215c50cd54990c4a3928e077b2 Mon Sep 17 00:00:00 2001
+From: Kate Hsuan <hpa@redhat.com>
+Date: Tue, 26 May 2026 16:28:48 +0800
+Subject: [PATCH] up-tool: Free GPtrArray using Glib auto clean up
+
+Free GPtrArray with Glib auto cleanup to prevent memory leak.
+
+Co-authored by: Claude Opus 4.6 <noreply@anthropic.com>
+Signed-off-by: Kate Hsuan <hpa@redhat.com>
+(cherry picked from commit 836cd94b0f5c4fb86514ee9829a4717a8552e028)
+---
+ tools/up-tool.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/tools/up-tool.c b/tools/up-tool.c
+index b66902e..8dc4c24 100644
+--- a/tools/up-tool.c
++++ b/tools/up-tool.c
+@@ -160,7 +160,7 @@ up_tool_changed_cb (UpClient *client, GParamSpec *pspec, gpointer user_data)
+ static gboolean
+ up_tool_do_monitor (UpClient *client)
+ {
+-	GPtrArray *devices;
++	g_autoptr(GPtrArray) devices = NULL;
+ 	guint i;
+ 
+ 	g_print ("Monitoring activity from the power daemon. Press Ctrl+C to cancel.\n");
+-- 
+2.56.0
+

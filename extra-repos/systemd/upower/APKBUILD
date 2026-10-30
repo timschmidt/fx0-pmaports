@@ -3,7 +3,7 @@ maintainer="Achill Gilgenast <achill@achill.org>"
 pkgname=upower
 _pkgver=1.91.0
 pkgver=9999$_pkgver
-pkgrel=3
+pkgrel=4
 pkgdesc="Power Management Services"
 url="https://upower.freedesktop.org"
 # armhf: pmb#2618
@@ -32,7 +32,12 @@ _repo_url="https://gitlab.freedesktop.org/upower/upower.git"
 subpackages="$pkgname-dev $pkgname-doc $pkgname-lang $pkgname-systemd $pkgname-zsh-completion"
 source="https://gitlab.freedesktop.org/upower/upower/-/archive/v$_pkgver/upower-v$_pkgver.tar.bz2
 	0001-fix-self-test-sleep-duration.patch
-	0002-linux-ignore-battery-interfaces-without-charge-data.patch
+	0002-tests-cover-CLI-device-enumeration-errors.patch
+	0003-up-tool-Free-GPtrArray-using-Glib-auto-clean-up.patch
+	0004-tools-up-tool-Fix-a-leak-by-freeing-GMainLoop-using-GLib-auto-clean-up.patch
+	0005-tools-up-tool-Free-the-memory-with-GLib-auto-clean-up.patch
+	0006-up-tool-Fix-potential-segmentation-fault.patch
+	0007-linux-reject-battery-interfaces-without-charge-information.patch
 	"
 builddir="$srcdir/$pkgname-v$_pkgver"
 
@@ -69,5 +74,10 @@ package() {
 sha512sums="
 32801d3ee4c5086221a9f12062b0f2e6765b239f68a562c24ef7808999bb34e299e6acd31acf5c414cf41613709c97b20ad64d252e1d8ddf23183576b156cf93  upower-v1.91.0.tar.bz2
 1b582f31660b82444682b6786913a6eb4e8e13c8370205b31da1bf9328e0d2e62c2596bfb4e82faf25e658f379ddb92d7f3f97ec8ddfdb512339d4d3d663f708  0001-fix-self-test-sleep-duration.patch
-126fd5ac143708b04cda40fa5b6d8bc8a98a7678071c3cfe63416eba22a5655db620c332ed5efa396b59da39d858de8083e5777bec1e2e30082621fc79b3f88a  0002-linux-ignore-battery-interfaces-without-charge-data.patch
+a69fd7b14c079fb5a4e3c3b4e969318624fe80d7a983328dcaf539cf76f26d7dbb32058453dd92d4796e5fb36f70ef60523368601417fd426a6fb9a1a50a2568  0002-tests-cover-CLI-device-enumeration-errors.patch
+4aaaa76f2584b6fe2cbacd32ab5b11b4124dc7a1c6babdd148decfb7e438a76b61819157504aa381e65620a7f31c263e0d8df5df1116847df1a466d83aba629c  0003-up-tool-Free-GPtrArray-using-Glib-auto-clean-up.patch
+9338d382da3eabc1579bc05b9b5bf82c78e1b7bd8ce182bfac768523a47e6bfaf86dae91761215c2739189d768479edabe865c5bbb86fa1ab0a70f412331015d  0004-tools-up-tool-Fix-a-leak-by-freeing-GMainLoop-using-GLib-auto-clean-up.patch
+07c0da11d59c7741f069778eaa8f43f3e5366ad414534edefa82e99f39f3011e54e152463c9b4fda7601993fc89109dc07b92c03fad0d8f2540f967aaaf2fe62  0005-tools-up-tool-Free-the-memory-with-GLib-auto-clean-up.patch
+f98a2027bc39f5ae6df2774e9cb4e807d8add3f49dc09396b2c7ae64dfb635a6eec2a81096b5999cbcb02db22cfed6bd2b6f860ecc2b1575dda72c322de5f556  0006-up-tool-Fix-potential-segmentation-fault.patch
+fae786290013819a47ef94966fef843666224f4d69c3f495ebcf64af8d4a43846091ba0f3dc64464664a253a83c6559879efad9a063c6b5c9b9c787ff67b26b5  0007-linux-reject-battery-interfaces-without-charge-information.patch
 "
