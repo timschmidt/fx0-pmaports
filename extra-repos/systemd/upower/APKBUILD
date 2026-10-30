@@ -3,7 +3,7 @@ maintainer="Achill Gilgenast <achill@achill.org>"
 pkgname=upower
 _pkgver=1.91.0
 pkgver=9999$_pkgver
-pkgrel=2
+pkgrel=3
 pkgdesc="Power Management Services"
 url="https://upower.freedesktop.org"
 # armhf: pmb#2618
@@ -32,6 +32,7 @@ _repo_url="https://gitlab.freedesktop.org/upower/upower.git"
 subpackages="$pkgname-dev $pkgname-doc $pkgname-lang $pkgname-systemd $pkgname-zsh-completion"
 source="https://gitlab.freedesktop.org/upower/upower/-/archive/v$_pkgver/upower-v$_pkgver.tar.bz2
 	0001-fix-self-test-sleep-duration.patch
+	0002-linux-ignore-battery-interfaces-without-charge-data.patch
 	"
 builddir="$srcdir/$pkgname-v$_pkgver"
 
@@ -68,4 +69,5 @@ package() {
 sha512sums="
 32801d3ee4c5086221a9f12062b0f2e6765b239f68a562c24ef7808999bb34e299e6acd31acf5c414cf41613709c97b20ad64d252e1d8ddf23183576b156cf93  upower-v1.91.0.tar.bz2
 1b582f31660b82444682b6786913a6eb4e8e13c8370205b31da1bf9328e0d2e62c2596bfb4e82faf25e658f379ddb92d7f3f97ec8ddfdb512339d4d3d663f708  0001-fix-self-test-sleep-duration.patch
+126fd5ac143708b04cda40fa5b6d8bc8a98a7678071c3cfe63416eba22a5655db620c332ed5efa396b59da39d858de8083e5777bec1e2e30082621fc79b3f88a  0002-linux-ignore-battery-interfaces-without-charge-data.patch
 "
