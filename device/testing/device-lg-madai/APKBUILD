@@ -32,7 +32,6 @@ package() {
 	devicepkg_package $startdir $pkgname
 }
 
-
 sha512sums="
 f18d322194f1cad61dff763f416ad8ec257bb8d637c599f55747344c7291ac11661530a7146d3840f257e6c182c5e110bf99e63a61d89f6643730c56461db342  deviceinfo
 177e6d158cbdc4c54225d8f42dccfe9cee18b3cb9373611060cdecb1fcc77fe13f222bb44a2e9afead4b50f936f6ef1dd58adc3140cd256515382e7393c37bce  kernel-cmdline.conf
