@@ -1,0 +1,247 @@
+From d1ddf2596ee5335fa68da420852e24545ec43a92 Mon Sep 17 00:00:00 2001
+From: Timothy Schmidt <timschmidt@gmail.com>
+Date: Thu, 29 Oct 2026 10:47:22 -0400
+Subject: [PATCH 1/2] Preserve a configurable prefix during Android boot-image
+ updates
+
+lk2nd can share the boot partition with an Android-format Linux image.
+Its standard build reserves the first 512 KiB. A write from Linux starts
+at the physical partition's byte zero, so enabling kernel updates with
+the existing write would replace the bootloader.
+
+Add deviceinfo_flash_bootimg_offset in decimal bytes. Validate that the
+reserved prefix and image fit the actual target, require sector alignment,
+and preserve both the prefix and bytes following the image. Leave the
+existing write behavior in place when the option is unset or zero.
+
+Exercise the actual writes against regular-file targets, including prefix
+and suffix preservation, invalid offsets, integer overflow input, images
+that only fit before subtracting the prefix, and an exact tail-sized image.
+The project CI checks pass in Alpine 3.24. Device boot/update and interrupted
+update recovery qualification remain pending.
+---
+ README.md                     | 10 ++++++
+ boot-deploy-functions.sh      | 33 ++++++++++++++++++--
+ test_boot_deploy_functions.sh | 58 +++++++++++++++++++++++++++++++++++
+ 3 files changed, 98 insertions(+), 3 deletions(-)
+
+diff --git a/README.md b/README.md
+index 841d149..7b77637 100644
+--- a/README.md
++++ b/README.md
+@@ -21,6 +21,16 @@ by boot-deploy, some of them are used internally by postmarketOS. For an up to
+ date list of variables that boot-deploy can use at runtime, see the top of the
+ `boot-deploy-functions.sh` file.
+ 
++For on-device Android boot-image updates, `deviceinfo_flash_bootimg_offset`
++reserves a prefix in the target boot partition. Set it to the decimal byte
++offset required by the installed bootloader, for example `524288` for a
++standard lk2nd build. The default is zero. Nonzero offsets must be multiples
++of 512 bytes; the image must fit in the space remaining after the prefix.
++The prefix and bytes following the image are preserved. Verify the offset
++against the actual bootloader build before enabling updates. This setting
++applies to the on-device boot-image write; lk2nd's fastboot interface already
++applies its own offset.
++
+ ### Kernel Command-line
+ 
+ boot-deploy uses
+diff --git a/boot-deploy-functions.sh b/boot-deploy-functions.sh
+index 7af5554..a380cc8 100755
+--- a/boot-deploy-functions.sh
++++ b/boot-deploy-functions.sh
+@@ -36,6 +36,7 @@ deviceinfo_depthcharge_board=""
+ deviceinfo_depthcharge_compression=""
+ deviceinfo_dtb=""
+ deviceinfo_header_version=""
++deviceinfo_flash_bootimg_offset=""
+ deviceinfo_flash_offset_base=""
+ deviceinfo_flash_offset_dtb=""
+ deviceinfo_flash_offset_kernel=""
+@@ -419,6 +420,7 @@ append_or_copy_dtb() {
+ # image is smaller than the partition, else returns false/1.
+ # $1: image file
+ # $2: partition / block device
++# $3: optional byte offset reserved before the image
+ check_image_size() {
+ 	local img="$1"
+ 	local part="$2"
+@@ -428,7 +430,20 @@ check_image_size() {
+ 	img_size="$(du -b "$img" | cut -f1)"
+ 
+ 	local part_size
+-	part_size="$(lsblk "$part" --noheadings --bytes --output size)"
++	part_size="$(lsblk "$part" --nodeps --noheadings --bytes --output size | tr -d '[:space:]')"
++	local _offset="${3:-0}"
++	case "$_offset" in
++		*[!0-9]*|0?*)
++			log "ERROR: image offset must be a non-negative decimal integer"
++			return 1
++			;;
++	esac
++	# Check the length before numeric comparison to reject overflowing input.
++	if [ "${#_offset}" -gt "${#part_size}" ] || [ "$_offset" -gt "$part_size" ]; then
++		log "ERROR: image offset ($_offset bytes) exceeds the $part size ($part_size bytes)"
++		return 1
++	fi
++	part_size=$((part_size - _offset))
+ 
+ 	if [ "$img_size" -gt "$part_size" ]; then
+ 		log "ERROR: The $img size ($img_size bytes) is greater than the $part size ($part_size bytes)"
+@@ -967,16 +982,28 @@ vendor_flash_android_bootimg() {
+ 	local boot_part_suffix
+ 	local boot_partition
+ 	local vendor_boot_partition
++	local _offset="${deviceinfo_flash_bootimg_offset:-0}"
+ 	boot_part_suffix=$(ab_get_slot) # Empty for non-A/B devices
+ 	boot_partition=$(findfs PARTLABEL="${partlabel}${boot_part_suffix}")
+ 	log "Flashing $bootimg_filename to '${partlabel}${boot_part_suffix}'"
+ 
+-	if ! check_image_size "$work_dir/$bootimg_filename" "$boot_partition"; then
++	if ! check_image_size "$work_dir/$bootimg_filename" "$boot_partition" "$_offset"; then
+ 		log_boot_partition_too_small_suggestion
+ 		exit 1
+ 	fi
+ 
+-	dd if="$work_dir/$bootimg_filename" of="$boot_partition" bs=1M
++	if [ "$((_offset % 512))" -ne 0 ]; then
++		log "ERROR: boot image offset must be a multiple of 512 bytes"
++		return 1
++	fi
++
++	if [ "$_offset" -eq 0 ]; then
++		dd if="$work_dir/$bootimg_filename" of="$boot_partition" bs=1M
++	else
++		log "Preserving $_offset bytes before the boot image"
++		dd if="$work_dir/$bootimg_filename" of="$boot_partition" bs=512 \
++			seek="$((_offset / 512))" conv=notrunc,fsync
++	fi
+ 
+ 	if { [ "$deviceinfo_header_version" = "3" ] || [ "$deviceinfo_header_version" = "4" ]; } && [ -e "$work_dir/vendor_boot.img" ]; then
+ 		if ! check_image_size "$work_dir/vendor_boot.img" "$vendor_boot_partition"; then
+diff --git a/test_boot_deploy_functions.sh b/test_boot_deploy_functions.sh
+index 341c86b..7c4a09f 100755
+--- a/test_boot_deploy_functions.sh
++++ b/test_boot_deploy_functions.sh
+@@ -159,10 +159,68 @@ test_extlinux_config() {
+ 	return $_ret
+ }
+ 
++test_flash_bootimg_offset() (
++	local _dir="$wdir/flash-offset"
++	mkdir -p "$_dir"
++	local _part="$_dir/partition"
++	work_dir="$_dir"
++	deviceinfo_header_version="0"
++
++	# Use regular files to exercise the real write without accessing devices.
++	findfs() { echo "$_part"; }
++	lsblk() { stat -c %s "$1"; }
++	ab_get_slot() { echo ""; }
++
++	dd if=/dev/urandom of="$_dir/prefix" bs=512K count=1 2>/dev/null
++	dd if=/dev/urandom of="$_dir/suffix" bs=512K count=1 2>/dev/null
++	dd if=/dev/urandom of="$work_dir/$bootimg_filename" bs=512K count=1 2>/dev/null
++	cat "$_dir/prefix" "$_dir/prefix" "$_dir/suffix" >"$_part"
++	deviceinfo_flash_bootimg_offset="524288"
++	vendor_flash_android_bootimg boot vendor_boot
++	dd if="$_part" bs=512K count=1 2>/dev/null | cmp - "$_dir/prefix"
++	dd if="$_part" bs=512K skip=1 count=1 2>/dev/null | cmp - "$work_dir/$bootimg_filename"
++	dd if="$_part" bs=512K skip=2 count=1 2>/dev/null | cmp - "$_dir/suffix"
++	[ "$(stat -c %s "$_part")" = 1572864 ]
++	cp "$_part" "$_dir/before"
++
++	# Every rejected offset must leave all bytes intact.
++	for _offset in 1 513 -512 0x80000 00 1.0 999999999999999999999999999; do
++		deviceinfo_flash_bootimg_offset="$_offset"
++		if (vendor_flash_android_bootimg boot vendor_boot); then
++			echo "test_flash_bootimg_offset: accepted invalid offset $_offset"
++			return 1
++		fi
++		cmp "$_part" "$_dir/before"
++	done
++
++	# The image fits the physical partition, but not the usable tail.
++	dd if=/dev/zero of="$work_dir/$bootimg_filename" bs=512K count=3 2>/dev/null
++	deviceinfo_flash_bootimg_offset="524288"
++	if (vendor_flash_android_bootimg boot vendor_boot); then
++		echo "test_flash_bootimg_offset: accepted image overflowing the tail"
++		return 1
++	fi
++	cmp "$_part" "$_dir/before"
++
++	# Exactly filling the tail is supported.
++	dd if=/dev/urandom of="$work_dir/$bootimg_filename" bs=512K count=2 2>/dev/null
++	vendor_flash_android_bootimg boot vendor_boot
++	dd if="$_part" bs=512K count=1 2>/dev/null | cmp - "$_dir/prefix"
++	dd if="$_part" bs=512K skip=1 count=2 2>/dev/null | cmp - "$work_dir/$bootimg_filename"
++	[ "$(stat -c %s "$_part")" = 1572864 ]
++
++	# An unset offset keeps the existing write-at-zero behavior.
++	deviceinfo_flash_bootimg_offset=""
++	vendor_flash_android_bootimg boot vendor_boot
++	dd if="$_part" bs=512K count=2 2>/dev/null | cmp - "$work_dir/$bootimg_filename"
++	echo "test_flash_bootimg_offset: pass"
++)
++
+ test_get_size_of_files
+ test_copy_files
+ test_invalid_dtb
+ test_extlinux_config
++test_flash_bootimg_offset
+ 
+ rm -rf "$wdir"
+ trap - INT EXIT TERM
+-- 
+2.56.0
+
+
+From b9a4eab23731815e5cf08747008515d7adf2d413 Mon Sep 17 00:00:00 2001
+From: Timothy Schmidt <timschmidt@gmail.com>
+Date: Thu, 29 Oct 2026 10:56:14 -0400
+Subject: [PATCH 2/2] Clarify boot offset validation and usable image capacity
+
+---
+ README.md                | 3 ++-
+ boot-deploy-functions.sh | 4 ++--
+ 2 files changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/README.md b/README.md
+index 7b77637..8f29eb6 100644
+--- a/README.md
++++ b/README.md
+@@ -24,7 +24,8 @@ date list of variables that boot-deploy can use at runtime, see the top of the
+ For on-device Android boot-image updates, `deviceinfo_flash_bootimg_offset`
+ reserves a prefix in the target boot partition. Set it to the decimal byte
+ offset required by the installed bootloader, for example `524288` for a
+-standard lk2nd build. The default is zero. Nonzero offsets must be multiples
++standard lk2nd build. The default is zero. Leading zeroes are not accepted.
++Nonzero offsets must be multiples
+ of 512 bytes; the image must fit in the space remaining after the prefix.
+ The prefix and bytes following the image are preserved. Verify the offset
+ against the actual bootloader build before enabling updates. This setting
+diff --git a/boot-deploy-functions.sh b/boot-deploy-functions.sh
+index a380cc8..c5ee162 100755
+--- a/boot-deploy-functions.sh
++++ b/boot-deploy-functions.sh
+@@ -434,7 +434,7 @@ check_image_size() {
+ 	local _offset="${3:-0}"
+ 	case "$_offset" in
+ 		*[!0-9]*|0?*)
+-			log "ERROR: image offset must be a non-negative decimal integer"
++			log "ERROR: image offset must be a non-negative decimal integer without leading zeroes"
+ 			return 1
+ 			;;
+ 	esac
+@@ -446,7 +446,7 @@ check_image_size() {
+ 	part_size=$((part_size - _offset))
+ 
+ 	if [ "$img_size" -gt "$part_size" ]; then
+-		log "ERROR: The $img size ($img_size bytes) is greater than the $part size ($part_size bytes)"
++		log "ERROR: The $img size ($img_size bytes) exceeds the available $part space ($part_size bytes after $_offset reserved bytes)"
+ 		return 1
+ 	fi
+ 
+-- 
+2.56.0
+

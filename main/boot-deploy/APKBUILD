@@ -1,7 +1,7 @@
 maintainer="Clayton Craft <clayton@craftyguy.net>"
 pkgname=boot-deploy
 pkgver=0.23.0
-pkgrel=0
+pkgrel=1
 pkgdesc="tool for finalizing and deploying boot related files"
 url="https://gitlab.postmarketos.org/postmarketOS/boot-deploy"
 arch="noarch"
@@ -10,6 +10,7 @@ source="
 	https://gitlab.postmarketos.org/postmarketOS/boot-deploy/-/archive/$pkgver/boot-deploy-$pkgver.tar.gz
 
 	os-customization
+	0001-fx0-bootimg-offset.patch
 	"
 depends="generate-kernel-cmdline"
 
@@ -31,4 +32,5 @@ package() {
 sha512sums="
 f5b2bb096207944b5821065506ed1123be2b70dfabe91572cfa44e986f9f71d712ae0863bd845d9c120623bc0ce5963fb3f278d072b5525b12399592f129277c  boot-deploy-0.23.0.tar.gz
 a243975b9850d9933e0f917f7eb38fc4a76ea658c3dcc56f035f60ee6c62d6740c1107143b8210bdc0231d4c9b6b2003e458120985604eb09649322d359ae89f  os-customization
+8ebd1fc699fbf9b9b3ef96d0444e67b9c379898ffd6822b9e61962e2dd1600ff016ee8395c847e9d961bf43e4d778cdc55a04b6c2e5e984798697f1e968c6900  0001-fx0-bootimg-offset.patch
 "
