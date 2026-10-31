@@ -1,0 +1,40 @@
+# Reference: <https://postmarketos.org/devicepkg>
+# Maintainer: Timothy Schmidt <timschmidt@gmail.com>
+pkgname=device-lg-madai
+pkgdesc="LG Fx0"
+pkgver=1
+pkgrel=0
+url="https://github.com/timschmidt/fx0"
+license="MIT"
+arch="armv7"
+options="!check !archcheck"
+depends="
+	boot-deploy>=0.23.0-r1
+	firmware-qcom-adreno-a330
+	linux-postmarketos-qcom-msm8226
+	mkbootimg-osm0sis
+	msm-firmware-loader
+	postmarketos-base
+	soc-qcom-msm8226
+"
+makedepends="devicepkg-dev"
+source="
+	deviceinfo
+	kernel-cmdline.conf
+	modules-initfs
+"
+
+build() {
+	devicepkg_build $startdir $pkgname
+}
+
+package() {
+	devicepkg_package $startdir $pkgname
+}
+
+
+sha512sums="
+f18d322194f1cad61dff763f416ad8ec257bb8d637c599f55747344c7291ac11661530a7146d3840f257e6c182c5e110bf99e63a61d89f6643730c56461db342  deviceinfo
+177e6d158cbdc4c54225d8f42dccfe9cee18b3cb9373611060cdecb1fcc77fe13f222bb44a2e9afead4b50f936f6ef1dd58adc3140cd256515382e7393c37bce  kernel-cmdline.conf
+7bfa9faf29e6de2a4072c8fdd06ab3f878de2c569a749c2720c9b944d46df416fda7198c0aeb12b7da4695c69646752ece615e032f8530283b68f7767be1333a  modules-initfs
+"
