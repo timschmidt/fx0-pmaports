@@ -3,7 +3,7 @@ maintainer="Newbyte <newbie13xd@gmail.com>"
 _flavor="postmarketos-qcom-msm8226"
 pkgname=linux-$_flavor
 pkgver=6.18.59
-pkgrel=26
+pkgrel=27
 pkgdesc="Mainline Kernel fork for APQ8026/MSM8226/MSM8926 devices"
 arch="armv7"
 _carch="arm"
@@ -30,7 +30,7 @@ makedepends="
 
 _config="config-$_flavor.$arch"
 # Fx0 development integration; shared-SoC regression qualification is pending.
-_commit="4c36987daa8e77da4d98548108da674a99771904"
+_commit="5ff9bed4160f7c9c8950c603ebbb369e41cd47fb"
 
 # Source
 source="
@@ -66,6 +66,6 @@ package() {
 }
 
 sha512sums="
-94fd735b7ed94382b290111c2476bdc3efc255efa4c4d144796a4cd3a58a64995b2d852bd7e586beb60cc47976d89eba8c8ae3dc52daeb7392614ccd28f60eba  linux-fx0-4c36987daa8e77da4d98548108da674a99771904.tar.gz
+f66c50ecae95a1ddd5196ee52cb033825646876a3db1063c53802062c0d8534001ea10936ec81ca8eba9e4491c6a729f0865a2a9784d8716c2e2d062b270cc4f  linux-fx0-5ff9bed4160f7c9c8950c603ebbb369e41cd47fb.tar.gz
 cf6d2e2a2e0f9eb91d76430ff7eba4cdfcb75486baaa462389f7be3ca7b10ea4ec5017ecc3b3c61cbe57526f0d378118285832523266c89a24133876a001bae0  config-postmarketos-qcom-msm8226.armv7
 "
