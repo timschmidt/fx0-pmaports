@@ -1,0 +1,40 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Timothy Schmidt <timschmidt@gmail.com>
+Date: Sun, 1 Nov 2026 22:33:03 -0500
+Subject: [PATCH] libipa: camera_sensor_helper: Add IMX132
+
+The Sony IMX132 uses the SMIA analogue gain model, gain = 256 / (256 -
+code), with a 10-bit black level of 64; its colour-bar test pattern
+reads 64 in the black bar. Add its sensor helper.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ src/ipa/libipa/camera_sensor_helper.cpp | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)
+
+diff --git a/src/ipa/libipa/camera_sensor_helper.cpp b/src/ipa/libipa/camera_sensor_helper.cpp
+index 96df0b8..65b5daa 100644
+--- a/src/ipa/libipa/camera_sensor_helper.cpp
++++ b/src/ipa/libipa/camera_sensor_helper.cpp
+@@ -542,6 +542,18 @@ public:
+ };
+ REGISTER_CAMERA_SENSOR_HELPER("imx214", CameraSensorHelperImx214)
+ 
++class CameraSensorHelperImx132 : public CameraSensorHelper
++{
++public:
++	CameraSensorHelperImx132()
++	{
++		/* 64 at 10 bits, as on other Sony SMIA sensors. */
++		blackLevel_ = 4096;
++		gain_ = AnalogueGainLinear{ 0, 256, -1, 256 };
++	}
++};
++REGISTER_CAMERA_SENSOR_HELPER("imx132", CameraSensorHelperImx132)
++
+ class CameraSensorHelperImx179 : public CameraSensorHelper
+ {
+ public:
+-- 
+2.56.0
+
