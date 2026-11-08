@@ -1,0 +1,18 @@
+Development source-build candidate, not a qualified device release.
+
+Pinned Linux base 4b800b920c7db82e8012a580a17cc2d8ff9d5e66 plus the 39
+ordered patches recorded in source-provenance.json reconstruct the complete
+runtime clock-guard candidate. The exact host-tested configuration gives
+6.18.59-fx0-cpr-runtime and keeps cpufreq-dt modular. Signing keys and proprietary
+firmware/calibration are absent from this recipe.
+
+The ordinary Fx0 DTB passed one moduleless L2/S2 RAM bootstrap and timed return.
+The separate qcom-msm8926-lg-madai-cpr.dtb has not booted. It explicitly selects
+the experimental calibration/domain/clock-normalization path. Do not select it
+for an unattended installed policy: schedutil could immediately request higher
+eligible rates. CPR, DVFS, analog rails, thermal, suspend, shared-SoC regression
+and update/recovery acceptance remain open. The earlier r51 EDL cause remains
+unresolved, so first controller trials remain RAM-only.
+
+Package build and host checks are separate from hardware acceptance. No
+installation or persistent boot-partition change is authorized by this file.

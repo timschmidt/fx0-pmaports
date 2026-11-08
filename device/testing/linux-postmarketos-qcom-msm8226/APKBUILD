@@ -3,7 +3,7 @@ maintainer="Newbyte <newbie13xd@gmail.com>"
 _flavor="postmarketos-qcom-msm8226"
 pkgname=linux-$_flavor
 pkgver=6.18.59
-pkgrel=8
+pkgrel=53
 pkgdesc="Mainline Kernel fork for APQ8026/MSM8226/MSM8926 devices"
 arch="armv7"
 _carch="arm"
@@ -30,12 +30,51 @@ makedepends="
 
 _config="config-$_flavor.$arch"
 # Fx0 development integration; shared-SoC regression qualification is pending.
-_commit="962a378204d641b1af66b0bcf27c84c52d278815"
+_commit="4b800b920c7db82e8012a580a17cc2d8ff9d5e66"
 
 # Source
 source="
 	linux-fx0-$_commit.tar.gz::https://github.com/timschmidt/fx0-linux/archive/$_commit.tar.gz
 	$_config
+	fx0-mpu6515-dmp.patch
+	iio-preserve-tiny-log2-scale.patch
+	fx0-mpu6515-dmp-smd-awake.patch
+	fx0-mpu6515-dmp-smd-wake.patch
+	fx0-mdp5-video-flush-before-enable.patch
+	fx0-msm8926-raw-qfprom-binding.patch
+	fx0-msm8926-raw-qfprom-driver.patch
+	fx0-msm8926-raw-qfprom-dt.patch
+	fx0-cpr-mx-voltage-sequencing.patch
+	fx0-scm-legacy-fuse-read.patch
+	fx0-msm8926-calibration-decoder.patch
+	fx0-pm8226-saw-fixed-range-binding.patch
+	fx0-pm8226-saw-fixed-range.patch
+	fx0-msm8226-l2-master-binding.patch
+	fx0-msm8226-l2-master-driver.patch
+	fx0-msm8926-l2-master-dt.patch
+	fx0-pm8226-saw-always-on-binding.patch
+	fx0-pm8226-saw-no-enable.patch
+	fx0-msm8926-voltage-plan.patch
+	fx0-cpr-mx-activation.patch
+	fx0-cpr-attach-retry.patch
+	fx0-msm8926-corner-map.patch
+	fx0-msm8926-calibration-load.patch
+	fx0-msm8926-cpr-domain-binding.patch
+	fx0-msm8926-cpr-domain.patch
+	fx0-pm8226-saw-voltage-recovery.patch
+	fx0-smd-rpm-request-acks.patch
+	fx0-cpr-mx-vote-recovery.patch
+	fx0-cpr-preserve-feedback-on-error.patch
+	fx0-msm8926-cpufreq-binding.patch
+	fx0-msm8926-cpufreq-attachment.patch
+	fx0-msm8926-cpr-qualification-dt.patch
+	fx0-msm8926-startup-clock-binding.patch
+	fx0-msm8926-startup-clock.patch
+	fx0-msm8926-startup-clock-dt.patch
+	fx0-msm8226-cpu-clock-errors.patch
+	fx0-msm8926-runtime-clock-binding.patch
+	fx0-msm8926-runtime-clock-guard.patch
+	fx0-msm8926-runtime-clock-dt.patch
 "
 builddir="$srcdir/fx0-linux-$_commit"
 
@@ -46,7 +85,7 @@ prepare() {
 
 build() {
 	unset LDFLAGS
-	make ARCH="$_carch" LLVM=1 \
+	make ARCH="$_carch" LLVM=1 LOCALVERSION="" \
 		KBUILD_BUILD_VERSION="$((pkgrel + 1 ))-$_flavor"
 }
 
@@ -54,7 +93,7 @@ package() {
 	mkdir -p "$pkgdir"/boot
 	make zinstall modules_install dtbs_install \
 		ARCH="$_carch" \
-		LLVM=1 \
+		LLVM=1 LOCALVERSION="" \
 		INSTALL_PATH="$pkgdir"/boot/ \
 		INSTALL_MOD_PATH="$pkgdir" \
 		INSTALL_MOD_STRIP=1 \
@@ -66,6 +105,45 @@ package() {
 }
 
 sha512sums="
-4c63e0d1ea1ccde0dc379542d4578f3f78d4387add79ef2c16a94b6cf93f15054fe084fdadbbbf471faa697ac77b4b6201e4f87a289e0fcac68ced9f0118c141  linux-fx0-962a378204d641b1af66b0bcf27c84c52d278815.tar.gz
-d494f4460ea4043dc2b46e8f43c5b6e063a709e6c9f3d86de099179803407e6bcb25c290c6596083315b3fe5651230e41bf2adafab1c768039edd5bdac3e1fc9  config-postmarketos-qcom-msm8226.armv7
+3479e7b9d3e753f4dddde1b88cb6544d2304e46aa92b3ba0aab8cd0ce1108869efd8cc36692a05bc094ccdff6213e0cae0433dc5b742289c57023a838fda8741  linux-fx0-4b800b920c7db82e8012a580a17cc2d8ff9d5e66.tar.gz
+48b66acd1d70192ced5f51de24991fe8579d54a15ab696071783baeee31cf53f11afe40065da0f2a0bb2205ef76ac3bf8cb3d62cafc5719d4cf0e52330893b43  config-postmarketos-qcom-msm8226.armv7
+638996e6df8e96a1ba54560fc5075840876b788c8e5a534b1f2178a0269a765ec34b05a999287bdc7da5f22f9666ac7e122c63818a54fb76133797cb4ce586de  fx0-mpu6515-dmp.patch
+14435047cf0bd838eb3c246ac5689a5f3bb908e23f55ef0c5655436ea15a75d26023dae63dcb52d4b6f7e0cd3f170a6e4a018a39a241f7670913fb90dc17cbda  iio-preserve-tiny-log2-scale.patch
+197cc0debb094c372a25a3e46efc1451e554e679084b285df8c8786b5f7c372d9358acc568f641042b2fa94d88f0659caf7d3e4da2df740c6a3a481eefcb1d4d  fx0-mpu6515-dmp-smd-awake.patch
+01112a410985fe30a8b3056d5a26ff3f8608e4aa41bb56c531ee3aecdce28eaad168c044415b5b032c10540314a0ceb70fcd8a3e65d5311276b304d41994d4c9  fx0-mpu6515-dmp-smd-wake.patch
+f6f518820d97313d8969467f20a448125fe3f8ff045537641a8b9f3ff618faddc0a8778b473505f70d15197de0cd10324e0b1b0c9803ad54c0ba236ae8865090  fx0-mdp5-video-flush-before-enable.patch
+3c21183e8aec7db84ac1dc8f9c9604c8671e0b4a4f0e768284d49cb601afedfc5d1fe9657b809a4c57a9c39f6a04a1e9f866f57ce42bd9fe0886a9d8859866b3  fx0-msm8926-raw-qfprom-binding.patch
+7bf79aecc35c4a29adf3705390e03e4978b20878ec0e4fe33d8864e065c5d4c348c2bed6e755dd9d16050a0b33b5338e047b1bb3a9de7817640f2fc9037fb730  fx0-msm8926-raw-qfprom-driver.patch
+bf960475c6a8b383127443402787e05693af8c5847387b31a3aef4f3fbc09aad6d3a4dc22517f5f7a467bf85077dd2df4fd2c24571f9bf5c0caa70826bbbef43  fx0-msm8926-raw-qfprom-dt.patch
+d1a7753f59b6290d9b597b8208e91a307cff2c08b3e98953649eb135b98989eae8e57a61a0ea48373c0cc2f38956b92a388ed5d9509ca8ec99f2ace01502e1fb  fx0-cpr-mx-voltage-sequencing.patch
+2aa60ddc152d82b8a5672a666a7085d4b49a3987a7d27b5387eb8aef49b6c538dc9892191789da9bffbc47a529bac4368902c68a59ea33f31d91e43dbd98b895  fx0-scm-legacy-fuse-read.patch
+342db991cbbad8f1ae2cb2744eed9761f6d4ac0e3f9c1a63a157fe1229b554942a675d67233906b6f182e2de0fabf5042bb47807dd064f376bc2db0cdff43849  fx0-msm8926-calibration-decoder.patch
+24c0b5e770cc97a14c8d7943561d1135fbaa124abebfe353caf0c931f628dcb68f85e24ea8c1df6f60c38d5386f30f49e3fe0c1a25b4cbb5f009fe5163aa1459  fx0-pm8226-saw-fixed-range-binding.patch
+495346f0b9dd0a75eaa0fcfaf9605af5062b6d4d36a8339233a924b8f1d344059295a994fd884c48980eaf788986168d42b07b5602ebe656790053bd34f382dd  fx0-pm8226-saw-fixed-range.patch
+2dc2bc0fcea776a84f7e4e5bca98f16b136e0de83939f645a7ce46acd1f79c9938dbafb0cf2b1c86321d20d779229950cd18810389a7341298cdae72502011a7  fx0-msm8226-l2-master-binding.patch
+5a3f3dbc31bb1d591c39d81f62dbb916f7b87aee58b09f6d72138c50351ccc91612960c54835586b6eab834dc77461a680d9514796ec5ecb42879a9d9ff3fcb9  fx0-msm8226-l2-master-driver.patch
+37c2eda171679277e15b69644f5e2cb50a85f5f568987f1f707259dc490b333521de98c67e03d2491f899cdfff19142fe8990506bf767b1d94ef0742d2057607  fx0-msm8926-l2-master-dt.patch
+3f6c7006f9c38841f9b4b69514a9c667d8b4ebca0af111545270e42d8653d1fba8251f83548af47295ec14b3fe5802c43f60c59c17ff97bf5cf1c93e9f234739  fx0-pm8226-saw-always-on-binding.patch
+bf1ea8f806b71aab0c83e32bde75f0398ebb771092251804cb7ca419612b8f25050641149b33688462659818ae81d5071b83e68cd2e09c8f5ce5cf7a952966c4  fx0-pm8226-saw-no-enable.patch
+2bca1111ccd66e64cc976736622986de75dde2e9990981689fa014446ac637ccf1a0b635d03717f2e631a07ab04df82835f0bf3a30b41fc3f06febee88b53d55  fx0-msm8926-voltage-plan.patch
+2febaadcad345caa6f50393506e6824ec15de3156c78e15146174d8ce4808f445b687b42801b86cdde6c0fd7709183cc8402c3053a7174ca945b0f250de74f70  fx0-cpr-mx-activation.patch
+aa225d1e05825578396c401a415129aaf6dd84b64b04cf4a92e3d71a2fb2cce398a7e939cf08d080a6d77c56d5bcda6a315cae705adc3e2a4284ec47eb8f5f6d  fx0-cpr-attach-retry.patch
+7110af66bf575ac8832893b3b522ffaa0d396f53833a664f4161891f29b9d0e877aedcb7a9d15f1b0b0672a8344ed7824db67796a0163be1cfc0a199f3826901  fx0-msm8926-corner-map.patch
+529ef3a104ca15b3ca9d3a31d45213522daefdec769c510b475f3b4557c92e940bcdcdb40143ae1f804bd4a5f61a0b8ba2c3379990f1401a66d6c4b319da1d3b  fx0-msm8926-calibration-load.patch
+5820dbaaa14685ed4425ab8531268b99beb35079b1fb0fb5726272bd2b2283c30c33c193c067f89c194f6cf10fd4c7b2463d317e67dc334ce96b5430487633c7  fx0-msm8926-cpr-domain-binding.patch
+2b6ead7550d02ceeafdd887145baaf728933fb9a3d9b21b9ba76faade3bd81adcfaba1c443a74f3e1e55fc94ac119d61326c3287a2d9900f2d9706a9b2a2598a  fx0-msm8926-cpr-domain.patch
+d12a6be5a164a8db1dc4c1c80966cec9e08f357cd44205bbd250f73c5047284e1e7e2e6bb5a24698f7082c4cff59f585f4333d902514b10a64d7753c60ef0688  fx0-pm8226-saw-voltage-recovery.patch
+a7702f6a07786632c589ae473bcb477fa9fa40149baf871403f509f0d507623a87801b68fffb7510f335061072847392daca313fc8e52c400a2e1f58c9675080  fx0-smd-rpm-request-acks.patch
+783ae74d2e852baa25b5bb04ffabc07d23c2830bda676f82ff81e50f579a7b977bb3a8ca829b0e50e2a4772f72eb34cf0d6b4dbf7db2c9476714175bae878010  fx0-cpr-mx-vote-recovery.patch
+b47027434785820d079f385ce48a7e3b89dd675702f6104bb90176bcc636d66d8ffd68203161ddee99fa5237c272b28a2d39218ab7e44cff65c800e8788bb1c5  fx0-cpr-preserve-feedback-on-error.patch
+3687bb63eb22a421c749290fa6098913d76b0b6888dbfc48b33b9c2f3465ec39d712ce4e9cfb83f4aa9451866b1d703a06860ab2d0764008a66e3499a54cde26  fx0-msm8926-cpufreq-binding.patch
+40b16161dce6129e1067e75fd1b91e708eff8290398f8bc35b7a6f2138fc4bb8d945a666d0fa4a057c1163a425825abf6107cdf11a72b6a3f42f5819749fa2f6  fx0-msm8926-cpufreq-attachment.patch
+67b64ce3a4f296f73a1a09b545c35ee505c2938f8be6495f68798d0b32948b16b89a9ee80b89a69bfed7f7b56ba71752c3cff10b74c0b13a384f2f9078fe20b8  fx0-msm8926-cpr-qualification-dt.patch
+8e895036232d88b4458265dce612686610c28d0776ad6831e2d8a8c7d71fc3a8d00b6970c1180b90dd4aa42e22c021e66ff130cb6a893ecfda5be622ac5dcedd  fx0-msm8926-startup-clock-binding.patch
+c0c1540ae172a53aa12b98bdcc91e05867a1973a87980559db14dc1b9dd1bb915b8ba268de2514600e7eb645ff0e12bbe00b12115f0cfb7f6c528db40cbe9581  fx0-msm8926-startup-clock.patch
+6d8e14ed668b11b0428271a09f85ece96c9477ffe669498d22df1769152a86a189d61531af722354ef27b5172c9fbee2199a1ff7ce1e3c12213d1653101db206  fx0-msm8926-startup-clock-dt.patch
+b8cea407695e91dd517a013f70ea7e209cf8b2686ceefebf7225c768601c7895bf479855954572dd362a34454126cfd43eb376cbab0cce61b2aa827561215026  fx0-msm8226-cpu-clock-errors.patch
+ccf8f214a3f081df9d17cac7240dec532e607a0b208920e5b544069ce2c36eaa6000e1325209e5ec8bc0494b5b78bb8f07af580189bce76efcabdf0c193adbd7  fx0-msm8926-runtime-clock-binding.patch
+f4f7eb2a44cb38ca615b135d60b4a994f1abd22e77ec0f1d877c0bf8c24bdeda05dbc1f169f5bc839a0480124af84750f2486a13798f79d59964a7708baf484e  fx0-msm8926-runtime-clock-guard.patch
+9b067b0597cdbda17602f8b7b6e5f01add835651e24845442336d06096c5b8083022548f4467d71b8d8b795213cb55d4c949aac477e0846e15508bb93047fc3f  fx0-msm8926-runtime-clock-dt.patch
 "

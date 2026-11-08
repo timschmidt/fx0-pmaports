@@ -10,7 +10,7 @@ CONFIG_AS_IS_LLVM=y
 CONFIG_AS_VERSION=210108
 CONFIG_LD_VERSION=0
 CONFIG_LD_IS_LLD=y
-CONFIG_LLD_VERSION=210108
+CONFIG_LLD_VERSION=180108
 CONFIG_RUSTC_VERSION=109801
 CONFIG_RUSTC_LLVM_VERSION=220108
 CONFIG_CC_HAS_ASM_GOTO_OUTPUT=y
@@ -21,7 +21,6 @@ CONFIG_CC_HAS_ASSUME=y
 CONFIG_CC_HAS_NO_PROFILE_FN_ATTR=y
 CONFIG_CC_HAS_COUNTED_BY=y
 CONFIG_CC_HAS_MULTIDIMENSIONAL_NONSTRING=y
-CONFIG_LD_CAN_USE_KEEP_IN_OVERLAY=y
 CONFIG_RUSTC_HAS_COERCE_POINTEE=y
 CONFIG_RUSTC_HAS_SPAN_FILE=y
 CONFIG_RUSTC_HAS_UNNECESSARY_TRANSMUTES=y
@@ -39,8 +38,8 @@ CONFIG_THREAD_INFO_IN_TASK=y
 CONFIG_INIT_ENV_ARG_LIMIT=32
 # CONFIG_COMPILE_TEST is not set
 # CONFIG_WERROR is not set
-CONFIG_LOCALVERSION=""
-CONFIG_LOCALVERSION_AUTO=y
+CONFIG_LOCALVERSION="-fx0-cpr-runtime"
+# CONFIG_LOCALVERSION_AUTO is not set
 CONFIG_BUILD_SALT=""
 CONFIG_HAVE_KERNEL_GZIP=y
 CONFIG_HAVE_KERNEL_LZMA=y
@@ -227,8 +226,6 @@ CONFIG_RD_ZSTD=y
 CONFIG_INITRAMFS_PRESERVE_MTIME=y
 # CONFIG_CC_OPTIMIZE_FOR_PERFORMANCE is not set
 CONFIG_CC_OPTIMIZE_FOR_SIZE=y
-CONFIG_HAVE_LD_DEAD_CODE_DATA_ELIMINATION=y
-# CONFIG_LD_DEAD_CODE_DATA_ELIMINATION is not set
 CONFIG_LD_ORPHAN_WARN=y
 CONFIG_LD_ORPHAN_WARN_LEVEL="warn"
 CONFIG_SYSCTL=y
@@ -555,7 +552,7 @@ CONFIG_CPU_FREQ_GOV_SCHEDUTIL=y
 CONFIG_CPUFREQ_DT=m
 # CONFIG_CPUFREQ_VIRT is not set
 CONFIG_CPUFREQ_DT_PLATDEV=y
-# CONFIG_ARM_QCOM_CPUFREQ_NVMEM is not set
+CONFIG_ARM_QCOM_CPUFREQ_NVMEM=y
 # CONFIG_ARM_QCOM_CPUFREQ_HW is not set
 # end of CPU Frequency scaling
 
@@ -1542,6 +1539,7 @@ CONFIG_GENERIC_CPU_VULNERABILITIES=y
 CONFIG_SOC_BUS=y
 CONFIG_REGMAP=y
 CONFIG_REGMAP_I2C=y
+CONFIG_REGMAP_SLIMBUS=m
 CONFIG_REGMAP_SPI=y
 CONFIG_REGMAP_SPMI=y
 CONFIG_REGMAP_MMIO=y
@@ -2264,6 +2262,7 @@ CONFIG_INPUT_TOUCHSCREEN=y
 # CONFIG_TOUCHSCREEN_ADC is not set
 # CONFIG_TOUCHSCREEN_AR1021_I2C is not set
 CONFIG_TOUCHSCREEN_ATMEL_MXT=m
+# CONFIG_TOUCHSCREEN_ATMEL_MXT_T37 is not set
 # CONFIG_TOUCHSCREEN_AUO_PIXCIR is not set
 # CONFIG_TOUCHSCREEN_BU21013 is not set
 # CONFIG_TOUCHSCREEN_BU21029 is not set
@@ -2382,6 +2381,7 @@ CONFIG_RMI4_F12=y
 CONFIG_RMI4_F30=y
 # CONFIG_RMI4_F34 is not set
 CONFIG_RMI4_F3A=y
+# CONFIG_RMI4_F54 is not set
 # CONFIG_RMI4_F55 is not set
 
 #
@@ -3169,6 +3169,7 @@ CONFIG_MFD_SYSCON=y
 # CONFIG_MFD_ROHM_BD96801 is not set
 # CONFIG_MFD_STPMIC1 is not set
 # CONFIG_MFD_STMFX is not set
+# CONFIG_MFD_WCD934X is not set
 # CONFIG_MFD_ATC260X_I2C is not set
 # CONFIG_MFD_QCOM_PM8008 is not set
 # CONFIG_RAVE_SP_CORE is not set
@@ -3278,7 +3279,401 @@ CONFIG_CEC_CORE=m
 # CONFIG_MEDIA_CEC_SUPPORT is not set
 # end of CEC support
 
-# CONFIG_MEDIA_SUPPORT is not set
+CONFIG_MEDIA_SUPPORT=m
+CONFIG_MEDIA_SUPPORT_FILTER=y
+CONFIG_MEDIA_SUBDRV_AUTOSELECT=y
+
+#
+# Media device types
+#
+CONFIG_MEDIA_CAMERA_SUPPORT=y
+# CONFIG_MEDIA_ANALOG_TV_SUPPORT is not set
+# CONFIG_MEDIA_DIGITAL_TV_SUPPORT is not set
+# CONFIG_MEDIA_RADIO_SUPPORT is not set
+# CONFIG_MEDIA_SDR_SUPPORT is not set
+CONFIG_MEDIA_PLATFORM_SUPPORT=y
+# CONFIG_MEDIA_TEST_SUPPORT is not set
+# end of Media device types
+
+CONFIG_VIDEO_DEV=m
+CONFIG_MEDIA_CONTROLLER=y
+
+#
+# Video4Linux options
+#
+CONFIG_VIDEO_V4L2_I2C=y
+CONFIG_VIDEO_V4L2_SUBDEV_API=y
+# CONFIG_VIDEO_ADV_DEBUG is not set
+# CONFIG_VIDEO_FIXED_MINOR_RANGES is not set
+# CONFIG_V4L2_FLASH_LED_CLASS is not set
+CONFIG_V4L2_FWNODE=m
+CONFIG_V4L2_ASYNC=m
+CONFIG_V4L2_CCI=m
+CONFIG_V4L2_CCI_I2C=m
+# end of Video4Linux options
+
+#
+# Media controller options
+#
+# end of Media controller options
+
+#
+# Media drivers
+#
+
+#
+# Drivers filtered as selected at 'Filter media drivers'
+#
+
+#
+# Media drivers
+#
+# CONFIG_MEDIA_USB_SUPPORT is not set
+CONFIG_MEDIA_PLATFORM_DRIVERS=y
+CONFIG_V4L_PLATFORM_DRIVERS=y
+# CONFIG_V4L_MEM2MEM_DRIVERS is not set
+# CONFIG_VIDEO_MUX is not set
+
+#
+# Allegro DVT media platform drivers
+#
+
+#
+# Amlogic media platform drivers
+#
+
+#
+# Amphion drivers
+#
+
+#
+# Aspeed media platform drivers
+#
+
+#
+# Atmel media platform drivers
+#
+
+#
+# Cadence media platform drivers
+#
+# CONFIG_VIDEO_CADENCE_CSI2RX is not set
+# CONFIG_VIDEO_CADENCE_CSI2TX is not set
+
+#
+# Chips&Media media platform drivers
+#
+
+#
+# Intel media platform drivers
+#
+
+#
+# Marvell media platform drivers
+#
+
+#
+# Mediatek media platform drivers
+#
+
+#
+# Microchip Technology, Inc. media platform drivers
+#
+
+#
+# Nuvoton media platform drivers
+#
+
+#
+# NVidia media platform drivers
+#
+
+#
+# NXP media platform drivers
+#
+
+#
+# Qualcomm media platform drivers
+#
+CONFIG_VIDEO_QCOM_CAMSS=m
+# CONFIG_VIDEO_QCOM_IRIS is not set
+
+#
+# Raspberry Pi media platform drivers
+#
+# CONFIG_VIDEO_RP1_CFE is not set
+
+#
+# Renesas media platform drivers
+#
+
+#
+# Rockchip media platform drivers
+#
+
+#
+# Samsung media platform drivers
+#
+
+#
+# STMicroelectronics media platform drivers
+#
+
+#
+# Sunxi media platform drivers
+#
+
+#
+# Texas Instruments drivers
+#
+
+#
+# Verisilicon media platform drivers
+#
+
+#
+# VIA media platform drivers
+#
+
+#
+# Xilinx media platform drivers
+#
+# CONFIG_VIDEO_XILINX is not set
+CONFIG_VIDEOBUF2_CORE=m
+CONFIG_VIDEOBUF2_V4L2=m
+CONFIG_VIDEOBUF2_MEMOPS=m
+CONFIG_VIDEOBUF2_DMA_SG=m
+# end of Media drivers
+
+#
+# Media ancillary drivers
+#
+CONFIG_VIDEO_CAMERA_SENSOR=y
+# CONFIG_VIDEO_ALVIUM_CSI2 is not set
+# CONFIG_VIDEO_AR0521 is not set
+# CONFIG_VIDEO_GC0308 is not set
+# CONFIG_VIDEO_GC0310 is not set
+# CONFIG_VIDEO_GC05A2 is not set
+# CONFIG_VIDEO_GC08A3 is not set
+# CONFIG_VIDEO_GC2145 is not set
+# CONFIG_VIDEO_HI556 is not set
+# CONFIG_VIDEO_HI846 is not set
+# CONFIG_VIDEO_HI847 is not set
+CONFIG_VIDEO_IMX132=m
+CONFIG_VIDEO_IMX179=m
+# CONFIG_VIDEO_IMX208 is not set
+# CONFIG_VIDEO_IMX214 is not set
+# CONFIG_VIDEO_IMX219 is not set
+# CONFIG_VIDEO_IMX258 is not set
+# CONFIG_VIDEO_IMX274 is not set
+# CONFIG_VIDEO_IMX283 is not set
+# CONFIG_VIDEO_IMX290 is not set
+# CONFIG_VIDEO_IMX296 is not set
+# CONFIG_VIDEO_IMX319 is not set
+# CONFIG_VIDEO_IMX334 is not set
+# CONFIG_VIDEO_IMX335 is not set
+# CONFIG_VIDEO_IMX355 is not set
+# CONFIG_VIDEO_IMX412 is not set
+# CONFIG_VIDEO_IMX415 is not set
+# CONFIG_VIDEO_MT9M001 is not set
+# CONFIG_VIDEO_MT9M111 is not set
+# CONFIG_VIDEO_MT9M114 is not set
+# CONFIG_VIDEO_MT9P031 is not set
+# CONFIG_VIDEO_MT9T112 is not set
+# CONFIG_VIDEO_MT9V011 is not set
+# CONFIG_VIDEO_MT9V032 is not set
+# CONFIG_VIDEO_MT9V111 is not set
+# CONFIG_VIDEO_OG01A1B is not set
+# CONFIG_VIDEO_OG0VE1B is not set
+# CONFIG_VIDEO_OV01A10 is not set
+# CONFIG_VIDEO_OV02A10 is not set
+# CONFIG_VIDEO_OV02E10 is not set
+# CONFIG_VIDEO_OV02C10 is not set
+# CONFIG_VIDEO_OV08D10 is not set
+# CONFIG_VIDEO_OV08X40 is not set
+# CONFIG_VIDEO_OV13858 is not set
+# CONFIG_VIDEO_OV13B10 is not set
+# CONFIG_VIDEO_OV2640 is not set
+# CONFIG_VIDEO_OV2659 is not set
+# CONFIG_VIDEO_OV2680 is not set
+# CONFIG_VIDEO_OV2685 is not set
+# CONFIG_VIDEO_OV2735 is not set
+# CONFIG_VIDEO_OV4689 is not set
+# CONFIG_VIDEO_OV5640 is not set
+# CONFIG_VIDEO_OV5645 is not set
+# CONFIG_VIDEO_OV5647 is not set
+# CONFIG_VIDEO_OV5648 is not set
+# CONFIG_VIDEO_OV5670 is not set
+# CONFIG_VIDEO_OV5675 is not set
+# CONFIG_VIDEO_OV5693 is not set
+# CONFIG_VIDEO_OV5695 is not set
+# CONFIG_VIDEO_OV6211 is not set
+# CONFIG_VIDEO_OV64A40 is not set
+# CONFIG_VIDEO_OV7251 is not set
+# CONFIG_VIDEO_OV7640 is not set
+# CONFIG_VIDEO_OV7670 is not set
+# CONFIG_VIDEO_OV772X is not set
+# CONFIG_VIDEO_OV7740 is not set
+# CONFIG_VIDEO_OV8856 is not set
+# CONFIG_VIDEO_OV8858 is not set
+# CONFIG_VIDEO_OV8865 is not set
+# CONFIG_VIDEO_OV9282 is not set
+# CONFIG_VIDEO_OV9640 is not set
+# CONFIG_VIDEO_OV9650 is not set
+# CONFIG_VIDEO_RDACM20 is not set
+# CONFIG_VIDEO_RDACM21 is not set
+# CONFIG_VIDEO_RJ54N1 is not set
+# CONFIG_VIDEO_S5C73M3 is not set
+# CONFIG_VIDEO_S5K5BAF is not set
+# CONFIG_VIDEO_S5K6A3 is not set
+# CONFIG_VIDEO_VD55G1 is not set
+# CONFIG_VIDEO_VD56G3 is not set
+# CONFIG_VIDEO_VGXY61 is not set
+# CONFIG_VIDEO_CCS is not set
+# CONFIG_VIDEO_ET8EK8 is not set
+
+#
+# Camera ISPs
+#
+# CONFIG_VIDEO_THP7312 is not set
+# end of Camera ISPs
+
+CONFIG_VIDEO_CAMERA_LENS=y
+# CONFIG_VIDEO_AD5820 is not set
+# CONFIG_VIDEO_AK7375 is not set
+# CONFIG_VIDEO_DW9714 is not set
+# CONFIG_VIDEO_DW9719 is not set
+# CONFIG_VIDEO_DW9768 is not set
+# CONFIG_VIDEO_DW9807_VCM is not set
+
+#
+# Flash devices
+#
+# CONFIG_VIDEO_ADP1653 is not set
+# CONFIG_VIDEO_LM3560 is not set
+# CONFIG_VIDEO_LM3646 is not set
+# end of Flash devices
+
+#
+# Audio decoders, processors and mixers
+#
+# CONFIG_VIDEO_CS3308 is not set
+# CONFIG_VIDEO_CS5345 is not set
+# CONFIG_VIDEO_CS53L32A is not set
+# CONFIG_VIDEO_MSP3400 is not set
+# CONFIG_VIDEO_SONY_BTF_MPX is not set
+# CONFIG_VIDEO_TDA1997X is not set
+# CONFIG_VIDEO_TDA7432 is not set
+# CONFIG_VIDEO_TDA9840 is not set
+# CONFIG_VIDEO_TEA6415C is not set
+# CONFIG_VIDEO_TEA6420 is not set
+# CONFIG_VIDEO_TLV320AIC23B is not set
+# CONFIG_VIDEO_TVAUDIO is not set
+# CONFIG_VIDEO_UDA1342 is not set
+# CONFIG_VIDEO_VP27SMPX is not set
+# CONFIG_VIDEO_WM8739 is not set
+# CONFIG_VIDEO_WM8775 is not set
+# end of Audio decoders, processors and mixers
+
+#
+# RDS decoders
+#
+# CONFIG_VIDEO_SAA6588 is not set
+# end of RDS decoders
+
+#
+# Video decoders
+#
+# CONFIG_VIDEO_ADV7180 is not set
+# CONFIG_VIDEO_ADV7183 is not set
+# CONFIG_VIDEO_ADV748X is not set
+# CONFIG_VIDEO_ADV7604 is not set
+# CONFIG_VIDEO_ADV7842 is not set
+# CONFIG_VIDEO_BT819 is not set
+# CONFIG_VIDEO_BT856 is not set
+# CONFIG_VIDEO_BT866 is not set
+# CONFIG_VIDEO_ISL7998X is not set
+# CONFIG_VIDEO_KS0127 is not set
+# CONFIG_VIDEO_MAX9286 is not set
+# CONFIG_VIDEO_ML86V7667 is not set
+# CONFIG_VIDEO_SAA7110 is not set
+# CONFIG_VIDEO_SAA711X is not set
+# CONFIG_VIDEO_TC358743 is not set
+# CONFIG_VIDEO_TC358746 is not set
+# CONFIG_VIDEO_TVP514X is not set
+# CONFIG_VIDEO_TVP5150 is not set
+# CONFIG_VIDEO_TVP7002 is not set
+# CONFIG_VIDEO_TW2804 is not set
+# CONFIG_VIDEO_TW9900 is not set
+# CONFIG_VIDEO_TW9903 is not set
+# CONFIG_VIDEO_TW9906 is not set
+# CONFIG_VIDEO_TW9910 is not set
+# CONFIG_VIDEO_VPX3220 is not set
+
+#
+# Video and audio decoders
+#
+# CONFIG_VIDEO_SAA717X is not set
+# CONFIG_VIDEO_CX25840 is not set
+# end of Video decoders
+
+#
+# Video encoders
+#
+# CONFIG_VIDEO_ADV7170 is not set
+# CONFIG_VIDEO_ADV7175 is not set
+# CONFIG_VIDEO_ADV7343 is not set
+# CONFIG_VIDEO_ADV7393 is not set
+# CONFIG_VIDEO_ADV7511 is not set
+# CONFIG_VIDEO_AK881X is not set
+# CONFIG_VIDEO_SAA7127 is not set
+# CONFIG_VIDEO_SAA7185 is not set
+# CONFIG_VIDEO_THS8200 is not set
+# end of Video encoders
+
+#
+# Video improvement chips
+#
+# CONFIG_VIDEO_UPD64031A is not set
+# CONFIG_VIDEO_UPD64083 is not set
+# end of Video improvement chips
+
+#
+# Audio/Video compression chips
+#
+# CONFIG_VIDEO_SAA6752HS is not set
+# end of Audio/Video compression chips
+
+#
+# SDR tuner chips
+#
+# end of SDR tuner chips
+
+#
+# Miscellaneous helper chips
+#
+# CONFIG_VIDEO_I2C is not set
+# CONFIG_VIDEO_M52790 is not set
+# CONFIG_VIDEO_ST_MIPID02 is not set
+# CONFIG_VIDEO_THS7303 is not set
+# end of Miscellaneous helper chips
+
+#
+# Video serializers and deserializers
+#
+# CONFIG_VIDEO_DS90UB913 is not set
+# CONFIG_VIDEO_DS90UB953 is not set
+# CONFIG_VIDEO_DS90UB960 is not set
+# CONFIG_VIDEO_MAX96714 is not set
+# CONFIG_VIDEO_MAX96717 is not set
+# end of Video serializers and deserializers
+
+#
+# Media SPI Adapters
+#
+# CONFIG_VIDEO_GS1662 is not set
+# end of Media SPI Adapters
+# end of Media ancillary drivers
 
 #
 # Graphics support
@@ -3670,6 +4065,7 @@ CONFIG_SND_HWDEP=m
 CONFIG_SND_RAWMIDI=m
 CONFIG_SND_UMP=m
 # CONFIG_SND_UMP_LEGACY_RAWMIDI is not set
+CONFIG_SND_COMPRESS_OFFLOAD=y
 CONFIG_SND_JACK=y
 CONFIG_SND_JACK_INPUT_DEV=y
 # CONFIG_SND_OSSEMUL is not set
@@ -3704,6 +4100,7 @@ CONFIG_SND_DRIVERS=y
 CONFIG_SND_USB=y
 CONFIG_SND_USB_AUDIO=m
 CONFIG_SND_USB_AUDIO_MIDI_V2=y
+CONFIG_SND_USB_AUDIO_USE_MEDIA_CONTROLLER=y
 # CONFIG_SND_USB_UA101 is not set
 # CONFIG_SND_USB_CAIAQ is not set
 # CONFIG_SND_USB_6FIRE is not set
@@ -3714,6 +4111,8 @@ CONFIG_SND_USB_AUDIO_MIDI_V2=y
 # CONFIG_SND_USB_TONEPORT is not set
 # CONFIG_SND_USB_VARIAX is not set
 CONFIG_SND_SOC=y
+CONFIG_SND_SOC_COMPRESS=y
+CONFIG_SND_SOC_TOPOLOGY=y
 # CONFIG_SND_SOC_USB is not set
 
 #
@@ -3825,7 +4224,27 @@ CONFIG_SND_SOC=y
 #
 # end of PXA
 
-# CONFIG_SND_SOC_QCOM is not set
+CONFIG_SND_SOC_QCOM=m
+# CONFIG_SND_SOC_STORM is not set
+# CONFIG_SND_SOC_APQ8016_SBC is not set
+CONFIG_SND_SOC_QCOM_COMMON=m
+CONFIG_SND_SOC_QDSP6_COMMON=m
+CONFIG_SND_SOC_QDSP6_CORE=m
+CONFIG_SND_SOC_QDSP6_AFE=m
+CONFIG_SND_SOC_QDSP6_AFE_DAI=m
+CONFIG_SND_SOC_QDSP6_AFE_CLOCKS=m
+CONFIG_SND_SOC_QDSP6_ADM=m
+CONFIG_SND_SOC_QDSP6_ROUTING=m
+CONFIG_SND_SOC_QDSP6_ASM=m
+CONFIG_SND_SOC_QDSP6_ASM_DAI=m
+CONFIG_SND_SOC_QDSP6_APM_DAI=m
+CONFIG_SND_SOC_QDSP6_APM_LPASS_DAI=m
+CONFIG_SND_SOC_QDSP6_APM=m
+CONFIG_SND_SOC_QDSP6_PRM_LPASS_CLOCKS=m
+CONFIG_SND_SOC_QDSP6_PRM=m
+CONFIG_SND_SOC_QDSP6=m
+CONFIG_SND_SOC_MSM8996=m
+# CONFIG_SND_SOC_SC7180 is not set
 
 #
 # SoundWire (SDCA)
@@ -4037,6 +4456,8 @@ CONFIG_SND_SOC_HDMI_CODEC=m
 # CONFIG_SND_SOC_TSCS454 is not set
 # CONFIG_SND_SOC_UDA1334 is not set
 # CONFIG_SND_SOC_UDA1342 is not set
+CONFIG_SND_SOC_WCD9306=m
+# CONFIG_SND_SOC_WCD9335 is not set
 # CONFIG_SND_SOC_WM8510 is not set
 # CONFIG_SND_SOC_WM8523 is not set
 # CONFIG_SND_SOC_WM8524 is not set
@@ -4512,6 +4933,7 @@ CONFIG_USB_CONFIGFS_F_FS=y
 # CONFIG_USB_CONFIGFS_F_MIDI is not set
 # CONFIG_USB_CONFIGFS_F_MIDI2 is not set
 # CONFIG_USB_CONFIGFS_F_HID is not set
+# CONFIG_USB_CONFIGFS_F_UVC is not set
 # CONFIG_USB_CONFIGFS_F_PRINTER is not set
 
 #
@@ -4532,6 +4954,7 @@ CONFIG_USB_CONFIGFS_F_FS=y
 # CONFIG_USB_G_MULTI is not set
 # CONFIG_USB_G_HID is not set
 # CONFIG_USB_G_DBGP is not set
+# CONFIG_USB_G_WEBCAM is not set
 # CONFIG_USB_RAW_GADGET is not set
 # end of USB Gadget precomposed configurations
 
@@ -4575,7 +4998,7 @@ CONFIG_MMC_CQHCI=y
 # CONFIG_MEMSTICK is not set
 CONFIG_NEW_LEDS=y
 CONFIG_LEDS_CLASS=y
-# CONFIG_LEDS_CLASS_FLASH is not set
+CONFIG_LEDS_CLASS_FLASH=m
 CONFIG_LEDS_CLASS_MULTICOLOR=m
 # CONFIG_LEDS_BRIGHTNESS_HW_CHANGED is not set
 
@@ -4631,6 +5054,17 @@ CONFIG_LEDS_PM8058=m
 #
 # Flash and Torch LED drivers
 #
+# CONFIG_LEDS_AAT1290 is not set
+# CONFIG_LEDS_AS3645A is not set
+# CONFIG_LEDS_KTD2692 is not set
+# CONFIG_LEDS_LM3601X is not set
+CONFIG_LEDS_QCOM_FLASH_V1=m
+# CONFIG_LEDS_QCOM_FLASH is not set
+# CONFIG_LEDS_RT4505 is not set
+# CONFIG_LEDS_RT8515 is not set
+# CONFIG_LEDS_SGM3140 is not set
+# CONFIG_LEDS_SY7802 is not set
+# CONFIG_LEDS_TPS6131X is not set
 
 #
 # RGB LED drivers
@@ -5147,7 +5581,10 @@ CONFIG_QCOM_GSBI=y
 CONFIG_QCOM_MDT_LOADER=m
 CONFIG_QCOM_OCMEM=y
 # CONFIG_QCOM_PD_MAPPER is not set
+CONFIG_QCOM_PDR_HELPERS=m
+CONFIG_QCOM_PDR_MSG=m
 # CONFIG_QCOM_PMIC_PDCHARGER_ULOG is not set
+CONFIG_QCOM_QMI_HELPERS=m
 # CONFIG_QCOM_RAMP_CTRL is not set
 CONFIG_QCOM_RMTFS_MEM=y
 CONFIG_QCOM_RPM_MASTER_STATS=m
@@ -5161,7 +5598,7 @@ CONFIG_QCOM_SOCINFO=y
 CONFIG_QCOM_SPM=y
 CONFIG_QCOM_STATS=m
 CONFIG_QCOM_WCNSS_CTRL=y
-# CONFIG_QCOM_APR is not set
+CONFIG_QCOM_APR=m
 # CONFIG_QCOM_ICC_BWMON is not set
 # CONFIG_QCOM_PBS is not set
 # end of Qualcomm SoC drivers
@@ -5197,7 +5634,8 @@ CONFIG_QCOM_UBWC_CONFIG=m
 #
 # Qualcomm PM Domains
 #
-# CONFIG_QCOM_CPR is not set
+CONFIG_QCOM_CPR=y
+CONFIG_QCOM_CPR_MSM8926=y
 CONFIG_QCOM_RPMPD=y
 # end of Qualcomm PM Domains
 # end of PM Domains
@@ -5716,7 +6154,7 @@ CONFIG_TSL2772=m
 # Magnetometer sensors
 #
 # CONFIG_AF8133J is not set
-# CONFIG_AK8974 is not set
+CONFIG_AK8974=m
 CONFIG_AK8975=m
 # CONFIG_AK09911 is not set
 # CONFIG_ALS31300 is not set
@@ -6001,7 +6439,8 @@ CONFIG_NVMEM_QCOM_QFPROM=y
 # CONFIG_TEE is not set
 CONFIG_PM_OPP=y
 # CONFIG_SIOX is not set
-# CONFIG_SLIMBUS is not set
+CONFIG_SLIMBUS=m
+CONFIG_SLIM_QCOM_NGD_CTRL=m
 CONFIG_INTERCONNECT=y
 CONFIG_INTERCONNECT_QCOM=y
 # CONFIG_INTERCONNECT_QCOM_MSM8909 is not set
@@ -6805,7 +7244,6 @@ CONFIG_DEBUG_INFO_DWARF5=y
 # CONFIG_DEBUG_INFO_REDUCED is not set
 CONFIG_DEBUG_INFO_COMPRESSED_NONE=y
 # CONFIG_DEBUG_INFO_COMPRESSED_ZLIB is not set
-# CONFIG_DEBUG_INFO_COMPRESSED_ZSTD is not set
 # CONFIG_DEBUG_INFO_SPLIT is not set
 # CONFIG_GDB_SCRIPTS is not set
 CONFIG_FRAME_WARN=1024
