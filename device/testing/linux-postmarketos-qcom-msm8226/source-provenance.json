@@ -1,11 +1,11 @@
 {
-  "manifest_sha256": "82510913fa74c0e0db1753b0b29605e8911e6038f789ef072953dfa54d8fefed",
+  "manifest_sha256": "46c04b4e05b0595cc9d69eabcbcd7cc12c78b118d834c2726e355e6d05717598",
   "profile": "cpr",
   "base_commit": "4b800b920c7db82e8012a580a17cc2d8ff9d5e66",
-  "configuration_sha256": "0d854c32f419049108cc23b02c50f95a421b28de04bdd3415aaf44c76698dd9c",
+  "configuration_sha256": "18a13809f3aa5042fb8447b1ae171b660b9321d85b9de6fd3c42134c7c8234fc",
   "template_sha256": "68f4f53292d6e05f78cc46b97db62f4dc2163678647e8eafb61b52082ed29cdc",
   "source_archive_sha512": "3479e7b9d3e753f4dddde1b88cb6544d2304e46aa92b3ba0aab8cd0ce1108869efd8cc36692a05bc094ccdff6213e0cae0433dc5b742289c57023a838fda8741",
-  "pkgrel": 54,
+  "pkgrel": 55,
   "patch_order": [
     "fx0-mpu6515-dmp.patch",
     "iio-preserve-tiny-log2-scale.patch",
@@ -45,7 +45,11 @@
     "fx0-msm8226-cpu-clock-errors.patch",
     "fx0-msm8926-runtime-clock-binding.patch",
     "fx0-msm8926-runtime-clock-guard.patch",
-    "fx0-msm8926-runtime-clock-dt.patch"
+    "fx0-msm8926-runtime-clock-dt.patch",
+    "fx0-msm8926-probe-diagnostics.patch",
+    "fx0-msm8926-cpr-xo-handoff.patch",
+    "fx0-msm8926-cpr-disabled-reference.patch",
+    "fx0-msm8926-cpr-voltage-observation.patch"
   ],
   "exported_sha256": {
     "fx0-mpu6515-dmp.patch": "9ad19adac6fa9aa3eb995e41e031daa556595d0a3f7e3713757e19f32f6c0ce4",
@@ -87,8 +91,12 @@
     "fx0-msm8926-runtime-clock-binding.patch": "fae83d0ee35ac0b6a84c92fd3051a75271e28069e2be71f6fb4cb3f9bfdd74c8",
     "fx0-msm8926-runtime-clock-guard.patch": "009bfbdde5a801987525907a77825d29b07f4ef0f5ffd0de05e8c6d55d721cbe",
     "fx0-msm8926-runtime-clock-dt.patch": "235a5bcb5004ffed9e71086dce3325091dc7f5281af45db53b2d7ad4ac7783d5",
-    "config-postmarketos-qcom-msm8226.armv7": "0d854c32f419049108cc23b02c50f95a421b28de04bdd3415aaf44c76698dd9c",
-    "APKBUILD": "09dee5fa5686746556b5b902bee808c4de914a2568fb4c1fdbc74532c25607ee"
+    "fx0-msm8926-probe-diagnostics.patch": "9dfbccdc362a70b15aaf28644a91f9f855f366bf530bb9f73f5232bb159260eb",
+    "fx0-msm8926-cpr-xo-handoff.patch": "4d215e04ef19ce6c011dbdf99ef1539d73d3f7a5be240d0d2160dfacf9ab126a",
+    "fx0-msm8926-cpr-disabled-reference.patch": "1fd7047761a4dd448907661396a7cfd5b82263e2ab97f88e753d99327e7a8e98",
+    "fx0-msm8926-cpr-voltage-observation.patch": "993c85b5b1abedbe0a4920dd0b4e2dd59fb4cdb3af1081ac21bb92115f735dbc",
+    "config-postmarketos-qcom-msm8226.armv7": "18a13809f3aa5042fb8447b1ae171b660b9321d85b9de6fd3c42134c7c8234fc",
+    "APKBUILD": "37d34dcff89f754fc47a8110f737dff166c0b808a439abcd7f84a0226553a2c1"
   },
   "status": "exported only; source build and hardware acceptance separate"
 }
