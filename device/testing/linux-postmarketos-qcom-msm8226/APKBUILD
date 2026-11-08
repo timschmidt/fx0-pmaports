@@ -3,7 +3,7 @@ maintainer="Newbyte <newbie13xd@gmail.com>"
 _flavor="postmarketos-qcom-msm8226"
 pkgname=linux-$_flavor
 pkgver=6.18.59
-pkgrel=53
+pkgrel=54
 pkgdesc="Mainline Kernel fork for APQ8026/MSM8226/MSM8926 devices"
 arch="armv7"
 _carch="arm"
@@ -81,6 +81,7 @@ builddir="$srcdir/fx0-linux-$_commit"
 prepare() {
 	default_prepare
 	cp "$srcdir/config-$_flavor.$arch" .config
+	make ARCH="$_carch" LLVM=1 LOCALVERSION="" olddefconfig
 }
 
 build() {

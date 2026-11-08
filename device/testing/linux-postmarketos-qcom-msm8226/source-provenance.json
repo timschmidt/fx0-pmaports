@@ -5,7 +5,7 @@
   "configuration_sha256": "0d854c32f419049108cc23b02c50f95a421b28de04bdd3415aaf44c76698dd9c",
   "template_sha256": "68f4f53292d6e05f78cc46b97db62f4dc2163678647e8eafb61b52082ed29cdc",
   "source_archive_sha512": "3479e7b9d3e753f4dddde1b88cb6544d2304e46aa92b3ba0aab8cd0ce1108869efd8cc36692a05bc094ccdff6213e0cae0433dc5b742289c57023a838fda8741",
-  "pkgrel": 53,
+  "pkgrel": 54,
   "patch_order": [
     "fx0-mpu6515-dmp.patch",
     "iio-preserve-tiny-log2-scale.patch",
@@ -88,7 +88,7 @@
     "fx0-msm8926-runtime-clock-guard.patch": "009bfbdde5a801987525907a77825d29b07f4ef0f5ffd0de05e8c6d55d721cbe",
     "fx0-msm8926-runtime-clock-dt.patch": "235a5bcb5004ffed9e71086dce3325091dc7f5281af45db53b2d7ad4ac7783d5",
     "config-postmarketos-qcom-msm8226.armv7": "0d854c32f419049108cc23b02c50f95a421b28de04bdd3415aaf44c76698dd9c",
-    "APKBUILD": "6ba45a94221bcabab3cc8c7237adaf530da5516e51a88f9682985f4e9c82ceaa"
+    "APKBUILD": "09dee5fa5686746556b5b902bee808c4de914a2568fb4c1fdbc74532c25607ee"
   },
   "status": "exported only; source build and hardware acceptance separate"
 }
