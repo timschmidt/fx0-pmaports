@@ -1,0 +1,2 @@
+# Preserve raw patch context; whitespace checks apply to the source diff.
+*.patch -whitespace
