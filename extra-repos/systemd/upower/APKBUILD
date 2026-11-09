@@ -3,7 +3,7 @@ maintainer="Achill Gilgenast <achill@achill.org>"
 pkgname=upower
 _pkgver=1.91.0
 pkgver=9999$_pkgver
-pkgrel=4
+pkgrel=5
 pkgdesc="Power Management Services"
 url="https://upower.freedesktop.org"
 # armhf: pmb#2618
@@ -38,6 +38,7 @@ source="https://gitlab.freedesktop.org/upower/upower/-/archive/v$_pkgver/upower-
 	0005-tools-up-tool-Free-the-memory-with-GLib-auto-clean-up.patch
 	0006-up-tool-Fix-potential-segmentation-fault.patch
 	0007-linux-reject-battery-interfaces-without-charge-information.patch
+	0008-linux-validate-battery-readings-and-retry-recovered-supplies.patch
 	"
 builddir="$srcdir/$pkgname-v$_pkgver"
 
@@ -80,4 +81,5 @@ a69fd7b14c079fb5a4e3c3b4e969318624fe80d7a983328dcaf539cf76f26d7dbb32058453dd92d4
 07c0da11d59c7741f069778eaa8f43f3e5366ad414534edefa82e99f39f3011e54e152463c9b4fda7601993fc89109dc07b92c03fad0d8f2540f967aaaf2fe62  0005-tools-up-tool-Free-the-memory-with-GLib-auto-clean-up.patch
 f98a2027bc39f5ae6df2774e9cb4e807d8add3f49dc09396b2c7ae64dfb635a6eec2a81096b5999cbcb02db22cfed6bd2b6f860ecc2b1575dda72c322de5f556  0006-up-tool-Fix-potential-segmentation-fault.patch
 fae786290013819a47ef94966fef843666224f4d69c3f495ebcf64af8d4a43846091ba0f3dc64464664a253a83c6559879efad9a063c6b5c9b9c787ff67b26b5  0007-linux-reject-battery-interfaces-without-charge-information.patch
+18ad858262bc6723afc35d9b7220ff150344cab6ce0723d8057e3b866bb4fc159cf38b3ff4d8642555bbe480bfa219a76a8b6567210e229c3b8a9c2a1bed3dd4  0008-linux-validate-battery-readings-and-retry-recovered-supplies.patch
 "
