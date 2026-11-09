@@ -3,7 +3,7 @@ maintainer="Newbyte <newbie13xd@gmail.com>"
 _flavor="postmarketos-qcom-msm8226"
 pkgname=linux-$_flavor
 pkgver=6.18.59
-pkgrel=56
+pkgrel=58
 pkgdesc="Mainline Kernel fork for APQ8026/MSM8226/MSM8926 devices"
 arch="armv7"
 _carch="arm"
@@ -51,6 +51,8 @@ source="
 	fx0-nxp-nci-ref-clock-binding.patch
 	fx0-nxp-nci-ref-clock.patch
 	fx0-madai-pn547-nfc.patch
+	fx0-nxp-nci-irq-teardown.patch
+	fx0-nxp-nci-unregister-lock.patch
 "
 builddir="$srcdir/fx0-linux-$_commit"
 
@@ -83,7 +85,7 @@ package() {
 
 sha512sums="
 3479e7b9d3e753f4dddde1b88cb6544d2304e46aa92b3ba0aab8cd0ce1108869efd8cc36692a05bc094ccdff6213e0cae0433dc5b742289c57023a838fda8741  linux-fx0-4b800b920c7db82e8012a580a17cc2d8ff9d5e66.tar.gz
-9032c18665cfd6f0929943b6d6cc009123fe98bd4a681fd677c322ed44c7a6ebe1c92994372e29c2a9a5a1d0d24a8c60c53921bfe3fb19ab7cdc7f7d4f5af17e  config-postmarketos-qcom-msm8226.armv7
+888e13b5ae6f71341df6e2ea3fa924082a10ed7c15aa11f324bbacf4b29faf756158318592314c561437811f7ad203504e35d2dc94d4011dc1a400953e810246  config-postmarketos-qcom-msm8226.armv7
 638996e6df8e96a1ba54560fc5075840876b788c8e5a534b1f2178a0269a765ec34b05a999287bdc7da5f22f9666ac7e122c63818a54fb76133797cb4ce586de  fx0-mpu6515-dmp.patch
 14435047cf0bd838eb3c246ac5689a5f3bb908e23f55ef0c5655436ea15a75d26023dae63dcb52d4b6f7e0cd3f170a6e4a018a39a241f7670913fb90dc17cbda  iio-preserve-tiny-log2-scale.patch
 197cc0debb094c372a25a3e46efc1451e554e679084b285df8c8786b5f7c372d9358acc568f641042b2fa94d88f0659caf7d3e4da2df740c6a3a481eefcb1d4d  fx0-mpu6515-dmp-smd-awake.patch
@@ -98,4 +100,6 @@ aab6122205087065f32f2386f4fdb52b6cf3561195de8afc0ad86d04e9bf0f4ceb59ee5789a8f7d2
 481d4601a838e5928308bf8944b74d25c9c50c1a8e4a5da9bbeba689bab1fcb6bb986f406df9aae6174106576efcd494f4b23acb3d6cf9c6b48a4e786c7b76f7  fx0-nxp-nci-ref-clock-binding.patch
 66ee34352ffbae3859690b7674e418039ec8e8ac252633b579b83c5bf05f4740ebfc1028a1b1e9629434d75d7460dc59ef68b685a7b762e07f8c794dbc2ba7e2  fx0-nxp-nci-ref-clock.patch
 12082451c80e6388bc6e0e0c56f0c690d79708d2ad8753d765029a5f72af78bf1f28b3ca7585d21c0b52a5befe277c8bf7f2817f32a803d7d5599767e4f719e5  fx0-madai-pn547-nfc.patch
+1aef965214d822bf727e9491c1b5605c41eefee6d15eb4a8043d4fc806bb440e96bfd69dd19eac4d9e8f7a7231510653f03507dcbebaf1659ae8b3a91b043823  fx0-nxp-nci-irq-teardown.patch
+a75ce39e0a41178410289c3bae6c90a8fa9836906f58e0cb633e134080609fd67e918b8c936cd0f55925352447d1d01bc9bc5e6212c0360c16448a22f6501c08  fx0-nxp-nci-unregister-lock.patch
 "

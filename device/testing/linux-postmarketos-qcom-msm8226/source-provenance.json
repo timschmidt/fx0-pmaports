@@ -1,11 +1,11 @@
 {
-  "manifest_sha256": "1d1a85535048041609c20476b3aeaa487f682bd60cfb92def8c6307c8d88c902",
+  "manifest_sha256": "0b014ccab7d91b55a676fab5c78fc9583abb0a317ee00329af2dac3df2d06391",
   "profile": "nfc",
   "base_commit": "4b800b920c7db82e8012a580a17cc2d8ff9d5e66",
-  "configuration_sha256": "3144faaa3f3f0f44fc7afe8e4f82fb48ec264dfb6354448511cad4029cdcbd5a",
+  "configuration_sha256": "cf07cd609c78832e613cb111edcf14574785f0b158bfe409ea88aa3047b0ba02",
   "template_sha256": "1db21f51e35974da6ab4a8eb2e9ce57f48cba688bc43ebb6c6001f8f72356bdb",
   "source_archive_sha512": "3479e7b9d3e753f4dddde1b88cb6544d2304e46aa92b3ba0aab8cd0ce1108869efd8cc36692a05bc094ccdff6213e0cae0433dc5b742289c57023a838fda8741",
-  "pkgrel": 56,
+  "pkgrel": 58,
   "patch_order": [
     "fx0-mpu6515-dmp.patch",
     "iio-preserve-tiny-log2-scale.patch",
@@ -20,7 +20,9 @@
     "fx0-nxp-nci-irq-unwind.patch",
     "fx0-nxp-nci-ref-clock-binding.patch",
     "fx0-nxp-nci-ref-clock.patch",
-    "fx0-madai-pn547-nfc.patch"
+    "fx0-madai-pn547-nfc.patch",
+    "fx0-nxp-nci-irq-teardown.patch",
+    "fx0-nxp-nci-unregister-lock.patch"
   ],
   "exported_sha256": {
     "fx0-mpu6515-dmp.patch": "9ad19adac6fa9aa3eb995e41e031daa556595d0a3f7e3713757e19f32f6c0ce4",
@@ -37,8 +39,10 @@
     "fx0-nxp-nci-ref-clock-binding.patch": "31bfbb060aa142b2e4e8b4faef5b238e1c2289b8532ac3c50cbbbb4100c30ce6",
     "fx0-nxp-nci-ref-clock.patch": "120beb388d538aabf5e09a42176ca5c093dbddf266f55fd6a2c179c9b6470a13",
     "fx0-madai-pn547-nfc.patch": "ed20b4a846b8def6bdcc5640a2692a7777cff35f22b8bc1ff358cc241569dcc0",
-    "config-postmarketos-qcom-msm8226.armv7": "3144faaa3f3f0f44fc7afe8e4f82fb48ec264dfb6354448511cad4029cdcbd5a",
-    "APKBUILD": "6509184d6c572c61c158c7d7f025ebeb8cd0f4c192de0783d09799c693fd358e"
+    "fx0-nxp-nci-irq-teardown.patch": "487c88dc83c51406c0d9227aa8ab761cbb68d801446b94239d8d7580080f8fd8",
+    "fx0-nxp-nci-unregister-lock.patch": "1b5a88fb46285739e9f0c14242aa03076d13dd9a8526a5ceebc42a7ba63eb39e",
+    "config-postmarketos-qcom-msm8226.armv7": "cf07cd609c78832e613cb111edcf14574785f0b158bfe409ea88aa3047b0ba02",
+    "APKBUILD": "c28403e9fefb770ae605311fce11c28ff73e49005e039dc7fa86f8750a48a23e"
   },
   "status": "exported only; source build and hardware acceptance separate"
 }
