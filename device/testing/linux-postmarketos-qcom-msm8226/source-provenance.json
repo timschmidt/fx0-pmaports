@@ -1,17 +1,14 @@
 {
-  "source_commit": "29edb2b9893edd18c445a648081b12038a033d51",
+  "source_commit": "c69b017cd9af9c589aeb921f901987fb26c55a4d",
   "source_repository": "https://github.com/timschmidt/fx0-linux.git",
-  "source_archive_sha512": "6189dae30190b4997f1f38a01410be43616d740c6a407859b5a9ab3eaeb9517022f70dba8cfa5ca7fe5bfd3059d248062d4e3a32e965fdb9f4fe48505da501e4",
+  "source_archive_sha512": "9ad68807660a648c876f32e97564e914753ecf4433a58e83eacf5892d0181acee9eddcd1caf25e555047aad2ff0260305ffa3f1d9a11a2b1bcce87ddbe9409be",
   "source_archive_blob_count": 91269,
   "archive_exact_Git_tree_verified": true,
-  "profile": "r50 feature baseline merged with stable Linux 6.18.63",
+  "profile": "Linux6.18.63 r50 feature baseline plus three RAM-qualified PM8xxx vibrator fixes",
   "patch_order": [],
   "pkgver": "6.18.63",
-  "pkgrel": 0,
-  "configuration_sha256": "2ad2a70bc33e6d81841c2931c2fad133e09b5614e0ddad981c2b423a8d6146c1",
-  "configuration_edits_from_host_baseline": [
-    "LOCALVERSION=-fx0-r50-maint-alpine",
-    "DEBUG_INFO_COMPRESSED_ZLIB=y (full DWARF retained)"
-  ],
-  "status": "Source-package candidate; physical acceptance separate"
+  "pkgrel": 1,
+  "configuration_sha256": "5448be2e38bf478e7740c56e59e070626d31d41e864324f0fb72e59ade424320",
+  "configuration_change_from_maintenance_package": "Distinct release only; community CFI, schedutil and full compressed DWARF retained",
+  "status": "Normal source-package build candidate; stable-kernel physical acceptance remains separate"
 }
