@@ -1,14 +1,20 @@
 {
-  "source_commit": "c69b017cd9af9c589aeb921f901987fb26c55a4d",
+  "source_commit": "1ffffb2b0f3b323c1c619d01ae69655a28b5858d",
   "source_repository": "https://github.com/timschmidt/fx0-linux.git",
-  "source_archive_sha512": "9ad68807660a648c876f32e97564e914753ecf4433a58e83eacf5892d0181acee9eddcd1caf25e555047aad2ff0260305ffa3f1d9a11a2b1bcce87ddbe9409be",
+  "source_archive_sha512": "055f4e7b83a9582e6c4daaaa63213680061307461d6936b8777c1fedcfef33ce3a6b438fd7f03af668354c933d29188e3bb65157cbb66891ff470cd032d29a43",
   "source_archive_blob_count": 91269,
   "archive_exact_Git_tree_verified": true,
-  "profile": "Linux6.18.63 r50 feature baseline plus three RAM-qualified PM8xxx vibrator fixes",
+  "profile": "Stable Linux6.18.63 with qualified vibrator fixes and the six remaining NFC r59 changes",
   "patch_order": [],
   "pkgver": "6.18.63",
-  "pkgrel": 1,
-  "configuration_sha256": "5448be2e38bf478e7740c56e59e070626d31d41e864324f0fb72e59ade424320",
-  "configuration_change_from_maintenance_package": "Distinct release only; community CFI, schedutil and full compressed DWARF retained",
-  "status": "Normal source-package build candidate; stable-kernel physical acceptance remains separate"
+  "pkgrel": 2,
+  "configuration_sha256": "84d9cd98b3dcf219ce5b129d1834adb8b41adfc11871ee3ea1af6d9f49b58c77",
+  "configuration_changes": [
+    "Distinct signed-module release",
+    "Enable NFC, NCI, NXP NCI and I2C transport as modules; retain other NFC transports disabled"
+  ],
+  "upstream_IRQ_cleanup_not_reapplied": true,
+  "CFI_nonpermissive_schedutil_and_full_compressed_DWARF_retained": true,
+  "experimental_CPU_CPR_activation_not_added": true,
+  "status": "Normal source-package build candidate; hardware and native acceptance remain separate"
 }
