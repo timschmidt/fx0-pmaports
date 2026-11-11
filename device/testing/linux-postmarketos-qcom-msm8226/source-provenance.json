@@ -1,20 +1,24 @@
 {
-  "source_commit": "1ffffb2b0f3b323c1c619d01ae69655a28b5858d",
+  "source_commit": "790c9c5407e17ad1d2395c2ec4bdfcfc8dc82826",
   "source_repository": "https://github.com/timschmidt/fx0-linux.git",
-  "source_archive_sha512": "055f4e7b83a9582e6c4daaaa63213680061307461d6936b8777c1fedcfef33ce3a6b438fd7f03af668354c933d29188e3bb65157cbb66891ff470cd032d29a43",
-  "source_archive_blob_count": 91269,
+  "source_archive_sha512": "5aae436aba8d62c18d05d69d8ce24d537ed333bdec276e5412f4f80a0e7c655930c39a0f17e2d5bfa3b4c26735c2e6eee8e5d246f3865ec259c0e13be06c8a85",
+  "source_archive_blob_count": 91278,
   "archive_exact_Git_tree_verified": true,
-  "profile": "Stable Linux6.18.63 with qualified vibrator fixes and the six remaining NFC r59 changes",
+  "profile": "Stable Linux6.18.63 with vibrator, NFC and CPU/CPR integration",
   "patch_order": [],
   "pkgver": "6.18.63",
-  "pkgrel": 2,
-  "configuration_sha256": "84d9cd98b3dcf219ce5b129d1834adb8b41adfc11871ee3ea1af6d9f49b58c77",
+  "pkgrel": 3,
+  "configuration_sha256": "adfcff43478d2c848562d24b1a5b21625b4059dc644ec3d30f2a291d11bdcf80",
   "configuration_changes": [
     "Distinct signed-module release",
-    "Enable NFC, NCI, NXP NCI and I2C transport as modules; retain other NFC transports disabled"
+    "Enable Qualcomm nvmem CPUFreq, CPR and MSM8926 calibration domain",
+    "Retain NFC/NCI/NXP I2C modules, nonpermissive CFI, schedutil and full compressed DWARF"
   ],
-  "upstream_IRQ_cleanup_not_reapplied": true,
-  "CFI_nonpermissive_schedutil_and_full_compressed_DWARF_retained": true,
-  "experimental_CPU_CPR_activation_not_added": true,
-  "status": "Normal source-package build candidate; hardware and native acceptance remain separate"
+  "separate_CPR_qualification_DTB": true,
+  "ordinary_DTB_retains_four_CPU_rates_and_no_CPR_domain": true,
+  "hardware_qualification_pending": true,
+  "strict_checkpatch_clean": false,
+  "reviewed_style_diagnostics": 15,
+  "final_submission_series_qualified": false,
+  "status": "Normal source-build candidate; native installation and physical hardware acceptance remain separate"
 }
