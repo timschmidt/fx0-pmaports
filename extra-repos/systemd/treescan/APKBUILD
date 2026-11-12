@@ -1,0 +1,33 @@
+# Forked from Alpine for the 32-bit time_t formatting correction
+maintainer="Ariadne Conill <ariadne@ariadne.space>"
+pkgname=treescan
+pkgver=0.1
+pkgrel=1
+pkgdesc="directory tree scanning tool"
+url="https://github.com/kaniini/treescan"
+arch="all"
+license="0BSD"
+checkdepends="python3"
+source="https://github.com/kaniini/treescan/archive/v$pkgver/treescan-$pkgver.tar.gz
+	0001-fix-time64-format.patch
+	check-timestamps.py
+	"
+options="!pmb:crossdirect"
+
+build() {
+	make CFLAGS="$CFLAGS -Wformat=2 -Werror=format"
+}
+
+check() {
+	python3 "$srcdir/check-timestamps.py" ./treescan
+}
+
+package() {
+	make DESTDIR="$pkgdir" install
+}
+
+sha512sums="
+cc39fa98b422efe7cfe7770eb69763d8a48e1da02278c175abcf55b98069674789ba85c595f9546f4d3b662200a50d550f91028b1a77591e19cf4087825aa765  treescan-0.1.tar.gz
+50cc7c4699dfd578a2055babf0669951cf903ee31d08a9a0813cd8e5f5b362638ab4b76b0b641c435a2cacdf4336b0e027366b0feba0fe0152e941868a149ad1  0001-fix-time64-format.patch
+ac83ff2259c40d6b4f97a620b15f807672f59e8d5ed65edeed436f6a4ee991417f0f05de7f8e990e326c8ec657426a7919c7f46a0b28e39e513b23cfd99907b3  check-timestamps.py
+"

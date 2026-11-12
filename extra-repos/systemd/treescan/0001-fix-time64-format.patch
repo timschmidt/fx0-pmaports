@@ -1,0 +1,5 @@
+--- a/treescan.c
++++ b/treescan.c
+@@ -56 +56 @@
+-		printf("%s type=%s mtime=%zd\n", targetpath, d_types[dentry->d_type], st.st_mtime);
++		printf("%s type=%s mtime=%" PRIdMAX "\n", targetpath, d_types[dentry->d_type], (intmax_t)st.st_mtime);
