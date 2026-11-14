@@ -1,14 +1,16 @@
 maintainer="Jakko <jahau@rocketmail.com>"
 pkgname=swclock-offset
 pkgver=0.3.0
-pkgrel=0
+pkgrel=1
 pkgdesc="Keep system time at an offset to a non-writable RTC"
 url="https://gitlab.postmarketos.org/postmarketOS/swclock-offset"
 arch="noarch"
 license="GPL-3.0-or-later"
 install="$pkgname.post-deinstall $pkgname-openrc.post-install $pkgname-openrc.pre-deinstall"
 subpackages="$pkgname-openrc $pkgname-systemd"
-source="https://gitlab.postmarketos.org/postmarketOS/swclock-offset/-/archive/$pkgver/swclock-offset-$pkgver.tar.gz"
+source="https://gitlab.postmarketos.org/postmarketOS/swclock-offset/-/archive/$pkgver/swclock-offset-$pkgver.tar.gz
+	0001-systemd-order-clock-before-filesystem-checks.patch
+	"
 options="!check" # No tests
 
 package() {
@@ -22,4 +24,5 @@ openrc() {
 
 sha512sums="
 7779deaf688dd25b9abe8161c8a0651d11b1a44785ff4495a1c4a8b9ba2108a9e73c47cbdb3f8669c4e2e85bea884145f66311c9ce674c1464538695a9852dc0  swclock-offset-0.3.0.tar.gz
+a42fe7ad3189fca69a13c0b4ab65970482481c9add1968835a8fd7dcecf2ad00ba7040706885d4b05f1c337a956501308ad38b352ac870bc0b33e4d2aa72b5e3  0001-systemd-order-clock-before-filesystem-checks.patch
 "
