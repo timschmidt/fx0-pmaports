@@ -33,3 +33,10 @@ The recipe remains a local draft.
 Standard package builds, signing, installation and recovery remain
 separate qualification steps. The accepted phone has not been updated
 by preparation of this recipe.
+
+This revision adds the six NFC changes to the accepted feature baseline and
+enables their four modules under the distinct -fx0-nfc-alpine release.
+Package revision 4 avoids reusing the already built revision 2 NFC or
+revision 3 CPR package identities. Experimental CPU CPR activation is absent.
+The public source includes the attributed deterministic register generator fix.
+Earlier feature and reproducibility results do not qualify this new cohort.

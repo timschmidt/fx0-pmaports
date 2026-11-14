@@ -1,16 +1,16 @@
 {
-  "source_commit": "e7c72f8cb3c50a1ec089f96277b7d4b469212ba9",
+  "source_commit": "68b0a4f369ed767b0c8061284d0017ed63f158ec",
   "source_repository": "https://github.com/timschmidt/fx0-linux.git",
-  "source_archive_sha512": "e50c8943c998a826f7dc86adc24c29b4fabb73da8602e422891ca0ae4f18e0b7aa77b567290644490d48b49a2e68706155fdacf2bc3d9355c4b28c2d00038419",
+  "source_archive_sha512": "0569209e15d0346c3df032299a233390f03f48bca3dd1f8e6dbd7ced963167c1975528f143162e35f8287449b39a0e9b596354436ee99684a0399a62c7ba1efe",
   "source_archive_blob_count": 91269,
   "archive_exact_Git_tree_verified": true,
-  "profile": "Accepted6.18.63-r1 feature baseline plus the attributed Mesa register-header reproducibility fix",
+  "profile": "Accepted 6.18.63-r1 feature baseline, six attributed NFC changes, and deterministic register-header generation",
   "patch_order": [],
   "pkgver": "6.18.63",
-  "pkgrel": 2,
-  "configuration_sha256": "5448be2e38bf478e7740c56e59e070626d31d41e864324f0fb72e59ade424320",
-  "configuration_change_from_maintenance_package": "Distinct release only; community CFI, schedutil and full compressed DWARF retained",
-  "status": "Local recipe draft with verified public source URL and all91269 Git bodies/link targets/modes; raw kernel pair verified. Standard signed APK builds and physical qualification pending.",
+  "pkgrel": 4,
+  "configuration_sha256": "84d9cd98b3dcf219ce5b129d1834adb8b41adfc11871ee3ea1af6d9f49b58c77",
+  "configuration_change_from_maintenance_package": "Distinct -fx0-nfc-alpine release plus NFC/NCI/NXP/I2C modules; full CFI, schedutil and compressed DWARF retained",
+  "status": "Published source/archive verified; new standard signed APK build pair pending; no matching physical qualification",
   "source_base": "c69b017cd9af9c589aeb921f901987fb26c55a4d",
   "reproducible_build_inputs": {
     "SOURCE_DATE_EPOCH": "Provided by the pinned abuild recipe provenance",
@@ -24,9 +24,11 @@
     "author": "Emma Anholt <anholt@igalia.com>"
   },
   "source_archive_public_URL_verified_after_publication": true,
-  "clean_raw_kernel_pair_verified": true,
-  "raw_pair_outputs_compared": 564,
-  "source_archive_public_URL": "https://github.com/timschmidt/fx0-linux/archive/e7c72f8cb3c50a1ec089f96277b7d4b469212ba9.tar.gz",
+  "clean_raw_kernel_pair_verified": false,
+  "raw_pair_outputs_compared": 0,
+  "source_archive_public_URL": "https://github.com/timschmidt/fx0-linux/archive/68b0a4f369ed767b0c8061284d0017ed63f158ec.tar.gz",
   "server_archive_Git_paths_verified": 91269,
-  "local_git_archive_differs_only_archive_representation": true
+  "local_git_archive_differs_only_archive_representation": true,
+  "experimental_CPU_CPR_activation_added": false,
+  "previous_NFC_source": "1ffffb2b0f3b323c1c619d01ae69655a28b5858d"
 }
