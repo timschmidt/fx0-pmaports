@@ -1,14 +1,29 @@
 {
-  "source_commit": "c69b017cd9af9c589aeb921f901987fb26c55a4d",
+  "source_commit": "e7c72f8cb3c50a1ec089f96277b7d4b469212ba9",
   "source_repository": "https://github.com/timschmidt/fx0-linux.git",
-  "source_archive_sha512": "9ad68807660a648c876f32e97564e914753ecf4433a58e83eacf5892d0181acee9eddcd1caf25e555047aad2ff0260305ffa3f1d9a11a2b1bcce87ddbe9409be",
+  "source_archive_sha512": "d34bd6d220a3081f6fe270ee6e434e7954de5bee17a5ba92f0399ba6ef85c95b05169edd5114c67d8e024e9d2d22063e6a825a54af9d9ef4af4bf396415c7a13",
   "source_archive_blob_count": 91269,
   "archive_exact_Git_tree_verified": true,
-  "profile": "Linux6.18.63 r50 feature baseline plus three RAM-qualified PM8xxx vibrator fixes",
+  "profile": "Accepted6.18.63-r1 feature baseline plus the attributed Mesa register-header reproducibility fix",
   "patch_order": [],
   "pkgver": "6.18.63",
-  "pkgrel": 1,
+  "pkgrel": 2,
   "configuration_sha256": "5448be2e38bf478e7740c56e59e070626d31d41e864324f0fb72e59ade424320",
   "configuration_change_from_maintenance_package": "Distinct release only; community CFI, schedutil and full compressed DWARF retained",
-  "status": "Normal source-package build candidate; stable-kernel physical acceptance remains separate"
+  "status": "Local recipe draft; complete raw kernel pair and source archive verified. Standard APK build/signing and physical qualification remain pending.",
+  "source_base": "c69b017cd9af9c589aeb921f901987fb26c55a4d",
+  "reproducible_build_inputs": {
+    "SOURCE_DATE_EPOCH": "Provided by the pinned abuild recipe provenance",
+    "KBUILD_BUILD_TIMESTAMP": "UTC YYYY-MM-DD HH:MM:SS parsed by native BusyBox date",
+    "KBUILD_BUILD_USER": "pmos",
+    "KBUILD_BUILD_HOST": "postmarketos",
+    "FX0_KERNEL_MODULE_SIGNING_KEY": "Optional retained signer supplied to the normal Kbuild signing tool. Repeated signed builds require the same retained key/certificate. No private key is included in source."
+  },
+  "source_attribution": {
+    "Mesa_commit": "c09c414563fc0fe6788f28ee7a35522ab21d0ed5",
+    "author": "Emma Anholt <anholt@igalia.com>"
+  },
+  "source_archive_public_URL_verified_after_publication": false,
+  "clean_raw_kernel_pair_verified": true,
+  "raw_pair_outputs_compared": 564
 }

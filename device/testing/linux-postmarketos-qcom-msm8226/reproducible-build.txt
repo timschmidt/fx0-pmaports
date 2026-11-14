@@ -1,0 +1,32 @@
+REPRODUCIBLE BUILD INPUTS
+
+The recipe converts abuild's SOURCE_DATE_EPOCH to a UTC timestamp that the
+native Alpine date implementation accepts. All make phases use the same
+builder identity, timestamp and version. Invalid or absent epochs fail
+before invoking make.
+
+For repeated signed builds, supply the same retained module signing key
+and certificate through FX0_KERNEL_MODULE_SIGNING_KEY inside the build
+chroot. The normal Kbuild tools consume that key; do not add private keys
+to the source package or repository. Without this optional input, Kbuild's
+normal automatic key generation remains available for development builds,
+and produces a new certificate that prevents binary equality.
+
+A public certificate alone is sufficient for the separate unsigned-module
+kernel compilation check. It cannot sign modules. APK repository signing
+is a different input and uses the normal abuild signer. A successful raw
+kernel comparison does not prove APK equality or establish device trust.
+
+Use the same toolchain, configuration, source archive and signing inputs
+for each build. Start from separate empty build HOME and temporary
+directories. Compare vmlinux, zImage, all modules and DTBs, the public
+certificate, metadata headers, and the complete signed APK artifacts.
+Verify the default CPIO entries use SOURCE_DATE_EPOCH rather than the
+current clock. Keep generated sources and complete source checks in the
+comparison scope.
+
+The source and recipe drafts are local and unpublished. The source URL
+and its archive checksum must be verified after approved publication.
+Standard package builds, signing, installation and recovery remain
+separate qualification steps. The accepted phone has not been updated
+by preparation of this recipe.

@@ -3,7 +3,7 @@ maintainer="Newbyte <newbie13xd@gmail.com>"
 _flavor="postmarketos-qcom-msm8226"
 pkgname=linux-$_flavor
 pkgver=6.18.63
-pkgrel=1
+pkgrel=2
 pkgdesc="Mainline Kernel fork for APQ8026/MSM8226/MSM8926 devices"
 arch="armv7"
 _carch="arm"
@@ -31,7 +31,7 @@ makedepends="
 
 _config="config-$_flavor.$arch"
 # Fx0 development integration; shared-SoC regression qualification is pending.
-_commit="c69b017cd9af9c589aeb921f901987fb26c55a4d"
+_commit="e7c72f8cb3c50a1ec089f96277b7d4b469212ba9"
 
 # Source
 source="
@@ -40,23 +40,32 @@ source="
 "
 builddir="$srcdir/fx0-linux-$_commit"
 
+_kernel_make() {
+	local timestamp
+	: "${SOURCE_DATE_EPOCH:?abuild must provide SOURCE_DATE_EPOCH}"
+	timestamp="$(date -u -d "@$SOURCE_DATE_EPOCH" '+%Y-%m-%d %H:%M:%S')" || return 1
+	TZ=UTC KBUILD_BUILD_USER=pmos KBUILD_BUILD_HOST=postmarketos \
+		KBUILD_BUILD_TIMESTAMP="$timestamp" \
+		make ARCH="$_carch" LLVM=1 LOCALVERSION="" \
+		KBUILD_BUILD_VERSION="$((pkgrel + 1))-$_flavor" \
+		CONFIG_MODULE_SIG_KEY="${FX0_KERNEL_MODULE_SIGNING_KEY:-certs/signing_key.pem}" \
+		"$@"
+}
+
 prepare() {
 	default_prepare
 	cp "$srcdir/config-$_flavor.$arch" .config
-	make ARCH="$_carch" LLVM=1 LOCALVERSION="" olddefconfig
+	_kernel_make olddefconfig
 }
 
 build() {
 	unset LDFLAGS
-	make ARCH="$_carch" LLVM=1 LOCALVERSION="" \
-		KBUILD_BUILD_VERSION="$((pkgrel + 1 ))-$_flavor"
+	_kernel_make
 }
 
 package() {
 	mkdir -p "$pkgdir"/boot
-	make zinstall modules_install dtbs_install \
-		ARCH="$_carch" \
-		LLVM=1 LOCALVERSION="" \
+	_kernel_make zinstall modules_install dtbs_install \
 		INSTALL_PATH="$pkgdir"/boot/ \
 		INSTALL_MOD_PATH="$pkgdir" \
 		INSTALL_MOD_STRIP=1 \
@@ -68,6 +77,6 @@ package() {
 }
 
 sha512sums="
-9ad68807660a648c876f32e97564e914753ecf4433a58e83eacf5892d0181acee9eddcd1caf25e555047aad2ff0260305ffa3f1d9a11a2b1bcce87ddbe9409be  linux-fx0-c69b017cd9af9c589aeb921f901987fb26c55a4d.tar.gz
+d34bd6d220a3081f6fe270ee6e434e7954de5bee17a5ba92f0399ba6ef85c95b05169edd5114c67d8e024e9d2d22063e6a825a54af9d9ef4af4bf396415c7a13  linux-fx0-e7c72f8cb3c50a1ec089f96277b7d4b469212ba9.tar.gz
 834601ae7b5b8f542957c79af8ef776c80bb817b972f003b5db3f63b6c06372179ad35aa19e919a6d59c2ac6b40e0f2469eadcc5a23de70971d46d49c35a71a2  config-postmarketos-qcom-msm8226.armv7
 "
