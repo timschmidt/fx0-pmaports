@@ -1,7 +1,7 @@
 {
   "source_commit": "e7c72f8cb3c50a1ec089f96277b7d4b469212ba9",
   "source_repository": "https://github.com/timschmidt/fx0-linux.git",
-  "source_archive_sha512": "d34bd6d220a3081f6fe270ee6e434e7954de5bee17a5ba92f0399ba6ef85c95b05169edd5114c67d8e024e9d2d22063e6a825a54af9d9ef4af4bf396415c7a13",
+  "source_archive_sha512": "e50c8943c998a826f7dc86adc24c29b4fabb73da8602e422891ca0ae4f18e0b7aa77b567290644490d48b49a2e68706155fdacf2bc3d9355c4b28c2d00038419",
   "source_archive_blob_count": 91269,
   "archive_exact_Git_tree_verified": true,
   "profile": "Accepted6.18.63-r1 feature baseline plus the attributed Mesa register-header reproducibility fix",
@@ -10,7 +10,7 @@
   "pkgrel": 2,
   "configuration_sha256": "5448be2e38bf478e7740c56e59e070626d31d41e864324f0fb72e59ade424320",
   "configuration_change_from_maintenance_package": "Distinct release only; community CFI, schedutil and full compressed DWARF retained",
-  "status": "Local recipe draft; complete raw kernel pair and source archive verified. Standard APK build/signing and physical qualification remain pending.",
+  "status": "Local recipe draft with verified public source URL and all91269 Git bodies/link targets/modes; raw kernel pair verified. Standard signed APK builds and physical qualification pending.",
   "source_base": "c69b017cd9af9c589aeb921f901987fb26c55a4d",
   "reproducible_build_inputs": {
     "SOURCE_DATE_EPOCH": "Provided by the pinned abuild recipe provenance",
@@ -23,7 +23,10 @@
     "Mesa_commit": "c09c414563fc0fe6788f28ee7a35522ab21d0ed5",
     "author": "Emma Anholt <anholt@igalia.com>"
   },
-  "source_archive_public_URL_verified_after_publication": false,
+  "source_archive_public_URL_verified_after_publication": true,
   "clean_raw_kernel_pair_verified": true,
-  "raw_pair_outputs_compared": 564
+  "raw_pair_outputs_compared": 564,
+  "source_archive_public_URL": "https://github.com/timschmidt/fx0-linux/archive/e7c72f8cb3c50a1ec089f96277b7d4b469212ba9.tar.gz",
+  "server_archive_Git_paths_verified": 91269,
+  "local_git_archive_differs_only_archive_representation": true
 }

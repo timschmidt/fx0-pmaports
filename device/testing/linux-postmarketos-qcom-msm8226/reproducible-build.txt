@@ -25,8 +25,11 @@ Verify the default CPIO entries use SOURCE_DATE_EPOCH rather than the
 current clock. Keep generated sources and complete source checks in the
 comparison scope.
 
-The source and recipe drafts are local and unpublished. The source URL
-and its archive checksum must be verified after approved publication.
+The source commit is published on the approved user-fork branch. The public
+GitHub archive checksum and all91,269 Git bodies, link targets and executable
+modes were verified after publication. Its compression differs from the
+locally generated archive; this recipe pins the actual server archive.
+The recipe remains a local draft.
 Standard package builds, signing, installation and recovery remain
 separate qualification steps. The accepted phone has not been updated
 by preparation of this recipe.
