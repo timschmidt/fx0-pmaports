@@ -1,19 +1,19 @@
-Fx0 maintained 6.18.64 normal package
+Fx0 6.18.64 power-management qualification profile
 
-Source: c3e72d14babc2e875b89cadde5ed57bb54b11a0b.
-SOURCE_DATE_EPOCH=1794873600 (2026-11-17 00:00:00 UTC).
-Use normal cross-native abuild with cached dependencies and two clean HOME/tmp
-workspaces. KBUILD user/host/timestamp/version are fixed by _kernel_make.
-Set FX0_KERNEL_MODULE_SIGNING_KEY to the existing trusted, readable absolute
-signer path. The recipe rejects omitted, relative or missing paths and never
-falls back to automatic key generation. No private signing key is shipped.
-Normal APK and module signing use existing signers in place; do not copy,
-hash or publish their bodies. Do not weaken signature verification or add trust
-keys to install this package. The paired fx0-dmp-reader uses timestamp byte 16
-and checks the running kernel release before capture.
-The ordinary madai board remains selected. CPR/full-suspend drivers and the
-optional charger policy are not promoted. Compilation is not physical proof.
-Two signed clean builds, CMS/APK payload/ABI/dependencies, install hooks and
-recovery must be qualified before the separately authorized device update.
-The earlier 468-module unsigned build used a public verification fixture;
-its binary hashes and certificate are not the normal signed-package reference.
+Source remains public commit c3e72d14babc2e875b89cadde5ed57bb54b11a0b.
+Package revision 1 uses the distinct -fx0-power-alpine running release.
+The configuration compiles the existing MSM8926 CPR/CPUfreq, MSM8226 system
+sleep/MPM, built-in IIO/VADC/IADC and guarded SMBB charging-policy paths.
+The ordinary madai DTB remains unchanged. CPU and deep-sleep descriptions
+must be selected explicitly in separately qualified temporary images.
+Charging remains inhibited without the verified firmware handoff and fresh
+validated profile/voltage/temperature inputs. Do not bypass these guards.
+
+Use SOURCE_DATE_EPOCH=1794873600 and the existing absolute module signer,
+provided in place to normal Kbuild tools; never read, hash or copy private
+key bodies. APK signing uses the existing accepted signer in place.
+Two fresh offline abuild builds and exact config/ABI/CMS/dependency/source
+checks are required. This profile has not passed physical acceptance and
+must not replace the accepted installed 6.18.64-r0 baseline on build proof.
+The paired reader revision 1 requires this exact package and release.
+Human maintainer/DCO review remains open; Codex (OpenAI) prepared this profile.

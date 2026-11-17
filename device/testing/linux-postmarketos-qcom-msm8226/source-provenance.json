@@ -10,11 +10,18 @@
   },
   "all_91291_paths_verified": true,
   "source_verification": "reviewed Git source, all bytes/executable flags/literal symlink targets",
-  "configuration_SHA256": "eaffd964f13930d2b050588925b85050991faaba5010457c6d70f13882792ff1",
+  "configuration_SHA256": "f8ce0d78d3f9bb66665755a8f823151b5e0cc6af80efc319ad5687c2a9e72a80",
   "SOURCE_DATE_EPOCH": 1794873600,
   "existing_trusted_module_certificate_DER_SHA256": "de086e266ec1d82ea17ebbd51f10242e591df3cf74e958e269bdd91b9176d370",
   "prior_unsigned_fixture_certificate_DER_SHA256": "ecc82a4adee7f57cad6f095faf644f878c3076f734ba69e0d1799e366d68cf86",
   "normal_signed_builds_not_yet_qualified": true,
   "reader_source_commit": "c7ce2bb8cf78e852eaea6024188c4cf21a4cb355",
-  "experimental_CPU_system_sleep_promoted": false
+  "experimental_CPU_system_sleep_promoted": false,
+  "profile": "power-management qualification",
+  "pkgrel": 1,
+  "kernel_release": "6.18.64-fx0-power-alpine",
+  "physical_acceptance": false,
+  "ordinary_madai_DTB_unchanged": true,
+  "CPU_system_sleep_drivers_compiled_for_explicit_qualification_targets": true,
+  "verified_firmware_charge_handoff_still_required": true
 }

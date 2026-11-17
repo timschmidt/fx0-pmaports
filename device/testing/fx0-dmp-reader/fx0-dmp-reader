@@ -1,6 +1,6 @@
 #!/bin/sh
 set -eu
-expected=6.18.64-fx0-lts-alpine
+expected=6.18.64-fx0-power-alpine
 running=$(uname -r)
 if [ "$running" != "$expected" ]; then
     printf '%s\n' "fx0-dmp-reader requires running kernel $expected; current kernel is $running. Boot the matching kernel before capture." >&2

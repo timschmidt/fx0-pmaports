@@ -1,12 +1,12 @@
 # Maintainer/DCO review remains pending.
 pkgname=fx0-dmp-reader
 pkgver=6.18.64
-pkgrel=0
+pkgrel=1
 pkgdesc="Bounded quaternion reader paired with the maintained Fx0 kernel"
 url="https://github.com/timschmidt/fx0"
 arch="noarch"
 license="MIT"
-depends="python3 linux-postmarketos-qcom-msm8226=6.18.64-r0"
+depends="python3 linux-postmarketos-qcom-msm8226=6.18.64-r1"
 options="!check" # Pure host decoder/restoration tests are recorded separately.
 _commit="c7ce2bb8cf78e852eaea6024188c4cf21a4cb355"
 source="
@@ -22,5 +22,5 @@ package() {
 sha512sums="
 1ee4987b3b28dd738afb3251c81636f6e96a1d312726ab981a66d7280692ad0448aa013ed3e8c6c13b851358b85eb6a1b42610bf5a157c61b7b187e39f548992  read_quaternion.py
 0cfa65244452499f80aa05829f351c918ef7af7808aa34b96dcbbc5d9f974ec7ea6457401f1c89de95a8f7fad1966682d78c3325b525f4ba145a62fe38256e80  LICENSE
-0552d2b55a17c3d47121b6bf55f5d38862592e73913ede08900efa6b11b3347952c6e1257c420c2e18472b3c8216541de2870c01e8b0f42713eab94f3af1548f  fx0-dmp-reader
+400631b3f791a12ed5d7bb99bf943d2bf11848b94287951deccde4a771470d3242d4aaa627ff9910daaa1054f8c7dc11d70eb2ab3ffe6d8c12ed8585614638f9  fx0-dmp-reader
 "
