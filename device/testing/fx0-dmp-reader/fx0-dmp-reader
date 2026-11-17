@@ -1,0 +1,9 @@
+#!/bin/sh
+set -eu
+expected=6.18.64-fx0-lts-alpine
+running=$(uname -r)
+if [ "$running" != "$expected" ]; then
+    printf '%s\n' "fx0-dmp-reader requires running kernel $expected; current kernel is $running. Boot the matching kernel before capture." >&2
+    exit 1
+fi
+exec python3 /usr/libexec/fx0-dmp-reader/read_quaternion.py "$@"

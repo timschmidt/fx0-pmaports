@@ -1,42 +1,19 @@
-REPRODUCIBLE BUILD INPUTS
+Fx0 maintained 6.18.64 normal package
 
-The recipe converts abuild's SOURCE_DATE_EPOCH to a UTC timestamp that the
-native Alpine date implementation accepts. All make phases use the same
-builder identity, timestamp and version. Invalid or absent epochs fail
-before invoking make.
-
-For repeated signed builds, supply the same retained module signing key
-and certificate through FX0_KERNEL_MODULE_SIGNING_KEY inside the build
-chroot. The normal Kbuild tools consume that key; do not add private keys
-to the source package or repository. Without this optional input, Kbuild's
-normal automatic key generation remains available for development builds,
-and produces a new certificate that prevents binary equality.
-
-A public certificate alone is sufficient for the separate unsigned-module
-kernel compilation check. It cannot sign modules. APK repository signing
-is a different input and uses the normal abuild signer. A successful raw
-kernel comparison does not prove APK equality or establish device trust.
-
-Use the same toolchain, configuration, source archive and signing inputs
-for each build. Start from separate empty build HOME and temporary
-directories. Compare vmlinux, zImage, all modules and DTBs, the public
-certificate, metadata headers, and the complete signed APK artifacts.
-Verify the default CPIO entries use SOURCE_DATE_EPOCH rather than the
-current clock. Keep generated sources and complete source checks in the
-comparison scope.
-
-The source commit is published on the approved user-fork branch. The public
-GitHub archive checksum and all91,269 Git bodies, link targets and executable
-modes were verified after publication. Its compression differs from the
-locally generated archive; this recipe pins the actual server archive.
-The recipe remains a local draft.
-Standard package builds, signing, installation and recovery remain
-separate qualification steps. The accepted phone has not been updated
-by preparation of this recipe.
-
-This revision adds the six NFC changes to the accepted feature baseline and
-enables their four modules under the distinct -fx0-nfc-alpine release.
-Package revision 4 avoids reusing the already built revision 2 NFC or
-revision 3 CPR package identities. Experimental CPU CPR activation is absent.
-The public source includes the attributed deterministic register generator fix.
-Earlier feature and reproducibility results do not qualify this new cohort.
+Source: c3e72d14babc2e875b89cadde5ed57bb54b11a0b.
+SOURCE_DATE_EPOCH=1794873600 (2026-11-17 00:00:00 UTC).
+Use normal cross-native abuild with cached dependencies and two clean HOME/tmp
+workspaces. KBUILD user/host/timestamp/version are fixed by _kernel_make.
+Set FX0_KERNEL_MODULE_SIGNING_KEY to the existing trusted, readable absolute
+signer path. The recipe rejects omitted, relative or missing paths and never
+falls back to automatic key generation. No private signing key is shipped.
+Normal APK and module signing use existing signers in place; do not copy,
+hash or publish their bodies. Do not weaken signature verification or add trust
+keys to install this package. The paired fx0-dmp-reader uses timestamp byte 16
+and checks the running kernel release before capture.
+The ordinary madai board remains selected. CPR/full-suspend drivers and the
+optional charger policy are not promoted. Compilation is not physical proof.
+Two signed clean builds, CMS/APK payload/ABI/dependencies, install hooks and
+recovery must be qualified before the separately authorized device update.
+The earlier 468-module unsigned build used a public verification fixture;
+its binary hashes and certificate are not the normal signed-package reference.

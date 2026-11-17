@@ -1,34 +1,20 @@
 {
-  "source_commit": "68b0a4f369ed767b0c8061284d0017ed63f158ec",
-  "source_repository": "https://github.com/timschmidt/fx0-linux.git",
-  "source_archive_sha512": "0569209e15d0346c3df032299a233390f03f48bca3dd1f8e6dbd7ced963167c1975528f143162e35f8287449b39a0e9b596354436ee99684a0399a62c7ba1efe",
-  "source_archive_blob_count": 91269,
-  "archive_exact_Git_tree_verified": true,
-  "profile": "Accepted 6.18.63-r1 feature baseline, six attributed NFC changes, and deterministic register-header generation",
-  "patch_order": [],
-  "pkgver": "6.18.63",
-  "pkgrel": 4,
-  "configuration_sha256": "84d9cd98b3dcf219ce5b129d1834adb8b41adfc11871ee3ea1af6d9f49b58c77",
-  "configuration_change_from_maintenance_package": "Distinct -fx0-nfc-alpine release plus NFC/NCI/NXP/I2C modules; full CFI, schedutil and compressed DWARF retained",
-  "status": "Published source/archive verified; new standard signed APK build pair pending; no matching physical qualification",
-  "source_base": "c69b017cd9af9c589aeb921f901987fb26c55a4d",
-  "reproducible_build_inputs": {
-    "SOURCE_DATE_EPOCH": "Provided by the pinned abuild recipe provenance",
-    "KBUILD_BUILD_TIMESTAMP": "UTC YYYY-MM-DD HH:MM:SS parsed by native BusyBox date",
-    "KBUILD_BUILD_USER": "pmos",
-    "KBUILD_BUILD_HOST": "postmarketos",
-    "FX0_KERNEL_MODULE_SIGNING_KEY": "Optional retained signer supplied to the normal Kbuild signing tool. Repeated signed builds require the same retained key/certificate. No private key is included in source."
+  "source_commit": "c3e72d14babc2e875b89cadde5ed57bb54b11a0b",
+  "source_archive": {
+    "name": "linux-fx0-c3e72d14babc2e875b89cadde5ed57bb54b11a0b.tar.gz",
+    "url": "https://codeload.github.com/timschmidt/fx0-linux/tar.gz/c3e72d14babc2e875b89cadde5ed57bb54b11a0b",
+    "final_URL": "https://codeload.github.com/timschmidt/fx0-linux/tar.gz/c3e72d14babc2e875b89cadde5ed57bb54b11a0b",
+    "size": 257014426,
+    "SHA256": "ea8e8b221fda41f3fd51a1a8c0c605b9001a8d6d0ae837036ffe5e6bdb9f0b75",
+    "SHA512": "21a77e9db13ca82cdae13457b19db23b47dd665e56c349d9839419f1132710599cee02342e56b5c216fcadfb0fdc4f2fe62759828dea490eab34978dc5010d71"
   },
-  "source_attribution": {
-    "Mesa_commit": "c09c414563fc0fe6788f28ee7a35522ab21d0ed5",
-    "author": "Emma Anholt <anholt@igalia.com>"
-  },
-  "source_archive_public_URL_verified_after_publication": true,
-  "clean_raw_kernel_pair_verified": false,
-  "raw_pair_outputs_compared": 0,
-  "source_archive_public_URL": "https://github.com/timschmidt/fx0-linux/archive/68b0a4f369ed767b0c8061284d0017ed63f158ec.tar.gz",
-  "server_archive_Git_paths_verified": 91269,
-  "local_git_archive_differs_only_archive_representation": true,
-  "experimental_CPU_CPR_activation_added": false,
-  "previous_NFC_source": "1ffffb2b0f3b323c1c619d01ae69655a28b5858d"
+  "all_91291_paths_verified": true,
+  "source_verification": "reviewed Git source, all bytes/executable flags/literal symlink targets",
+  "configuration_SHA256": "eaffd964f13930d2b050588925b85050991faaba5010457c6d70f13882792ff1",
+  "SOURCE_DATE_EPOCH": 1794873600,
+  "existing_trusted_module_certificate_DER_SHA256": "de086e266ec1d82ea17ebbd51f10242e591df3cf74e958e269bdd91b9176d370",
+  "prior_unsigned_fixture_certificate_DER_SHA256": "ecc82a4adee7f57cad6f095faf644f878c3076f734ba69e0d1799e366d68cf86",
+  "normal_signed_builds_not_yet_qualified": true,
+  "reader_source_commit": "c7ce2bb8cf78e852eaea6024188c4cf21a4cb355",
+  "experimental_CPU_system_sleep_promoted": false
 }

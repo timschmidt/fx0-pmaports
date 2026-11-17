@@ -2,8 +2,8 @@
 maintainer="Newbyte <newbie13xd@gmail.com>"
 _flavor="postmarketos-qcom-msm8226"
 pkgname=linux-$_flavor
-pkgver=6.18.63
-pkgrel=4
+pkgver=6.18.64
+pkgrel=0
 pkgdesc="Mainline Kernel fork for APQ8026/MSM8226/MSM8926 devices"
 arch="armv7"
 _carch="arm"
@@ -31,7 +31,7 @@ makedepends="
 
 _config="config-$_flavor.$arch"
 # Fx0 development integration; shared-SoC regression qualification is pending.
-_commit="68b0a4f369ed767b0c8061284d0017ed63f158ec"
+_commit="c3e72d14babc2e875b89cadde5ed57bb54b11a0b"
 
 # Source
 source="
@@ -42,13 +42,22 @@ builddir="$srcdir/fx0-linux-$_commit"
 
 _kernel_make() {
 	local timestamp
+	: "${FX0_KERNEL_MODULE_SIGNING_KEY:?provide the existing trusted signer explicitly; automatic key generation is prohibited}"
+	case "$FX0_KERNEL_MODULE_SIGNING_KEY" in
+		/*) ;;
+		*) printf '%s\n' "FX0_KERNEL_MODULE_SIGNING_KEY must name an existing absolute path" >&2; return 1 ;;
+	esac
+	if [ ! -f "$FX0_KERNEL_MODULE_SIGNING_KEY" ] || [ ! -r "$FX0_KERNEL_MODULE_SIGNING_KEY" ]; then
+		printf '%s\n' "The explicit signer path must already exist and be readable" >&2
+		return 1
+	fi
 	: "${SOURCE_DATE_EPOCH:?abuild must provide SOURCE_DATE_EPOCH}"
 	timestamp="$(date -u -d "@$SOURCE_DATE_EPOCH" '+%Y-%m-%d %H:%M:%S')" || return 1
 	TZ=UTC KBUILD_BUILD_USER=pmos KBUILD_BUILD_HOST=postmarketos \
 		KBUILD_BUILD_TIMESTAMP="$timestamp" \
 		make ARCH="$_carch" LLVM=1 LOCALVERSION="" \
 		KBUILD_BUILD_VERSION="$((pkgrel + 1))-$_flavor" \
-		CONFIG_MODULE_SIG_KEY="${FX0_KERNEL_MODULE_SIGNING_KEY:-certs/signing_key.pem}" \
+		CONFIG_MODULE_SIG_KEY="$FX0_KERNEL_MODULE_SIGNING_KEY" \
 		"$@"
 }
 
@@ -77,6 +86,6 @@ package() {
 }
 
 sha512sums="
-0569209e15d0346c3df032299a233390f03f48bca3dd1f8e6dbd7ced963167c1975528f143162e35f8287449b39a0e9b596354436ee99684a0399a62c7ba1efe  linux-fx0-68b0a4f369ed767b0c8061284d0017ed63f158ec.tar.gz
-1690af4200cbfad3300fe8423e50d323689f740d6bd6259e290bc10ea7e3d36271e735bc1851cb66e90a8274b0e61e2ac49951dd6b7092d6542a57288c51181d  config-postmarketos-qcom-msm8226.armv7
+21a77e9db13ca82cdae13457b19db23b47dd665e56c349d9839419f1132710599cee02342e56b5c216fcadfb0fdc4f2fe62759828dea490eab34978dc5010d71  linux-fx0-c3e72d14babc2e875b89cadde5ed57bb54b11a0b.tar.gz
+85fd0429f280ad3d478640c6315a181fb2e32cfd385a753b951daab811fb38e5efdbcccb5b8f17d2ee49c677ff1d7f2d72f3117f5b8864daa1e92b1b16d878bf  config-postmarketos-qcom-msm8226.armv7
 "
