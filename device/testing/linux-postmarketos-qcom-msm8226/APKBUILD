@@ -3,7 +3,7 @@ maintainer="Newbyte <newbie13xd@gmail.com>"
 _flavor="postmarketos-qcom-msm8226"
 pkgname=linux-$_flavor
 pkgver=6.18.64
-pkgrel=2
+pkgrel=3
 pkgdesc="Mainline Kernel fork for APQ8026/MSM8226/MSM8926 devices"
 arch="armv7"
 _carch="arm"
@@ -38,6 +38,9 @@ source="
 	linux-fx0-$_commit.tar.gz::https://github.com/timschmidt/fx0-linux/archive/$_commit.tar.gz
 	$_config
 	0001-fx0-smbb-battery-voltage.patch
+	0002-camss-msm8226-guard-active-stream-sleep.patch
+	0003-camss-gen1-ignore-wm-completion-while-stopping.patch
+	0004-camss-msm8226-rearm-rdi-at-sof.patch
 "
 builddir="$srcdir/fx0-linux-$_commit"
 
@@ -90,4 +93,7 @@ sha512sums="
 21a77e9db13ca82cdae13457b19db23b47dd665e56c349d9839419f1132710599cee02342e56b5c216fcadfb0fdc4f2fe62759828dea490eab34978dc5010d71  linux-fx0-c3e72d14babc2e875b89cadde5ed57bb54b11a0b.tar.gz
 85fd0429f280ad3d478640c6315a181fb2e32cfd385a753b951daab811fb38e5efdbcccb5b8f17d2ee49c677ff1d7f2d72f3117f5b8864daa1e92b1b16d878bf  config-postmarketos-qcom-msm8226.armv7
 8b40acb615e90a18eaf6373e12dc4ba55054951a78dee7e62276dba941e761b2a8920b925945dc7aabcf28122c224c7de2eae4bbd02d709d4e3da75142db03ae  0001-fx0-smbb-battery-voltage.patch
+ed49d01cea77104e642546f1fabf2ab331a1c3bc1247eb78e55d7e1ab18df4a3392a4e3ca45753cb1ff78102605793a0da44761b4dea8567a4a1e7f65b76c348  0002-camss-msm8226-guard-active-stream-sleep.patch
+48240ceb746f918e7f605404964d4941f175ad6081844fc298fb5fb3b2cb1c302836bef1f42f88a4af7a635564d9421059e1946a035afc52b9c21cbced7e5d13  0003-camss-gen1-ignore-wm-completion-while-stopping.patch
+d1ef1184efc51ebdc164b6f9f18cbb53db793d964a8b6ed2dc676d6bae8de5a555a2e576d207ec0655e833fc2e588c6083d1da2a3ce0c87899fa1c4452e0f9c0  0004-camss-msm8226-rearm-rdi-at-sof.patch
 "

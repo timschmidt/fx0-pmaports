@@ -1,0 +1,53 @@
+From 70058b171b7d06997638d94355288074598221aa Mon Sep 17 00:00:00 2001
+From: Timothy Schmidt <timschmidt@gmail.com>
+Date: Thu, 19 Nov 2026 16:11:46 -0500
+Subject: [PATCH 3/4] media: qcom: camss: ignore gen1 WM completions while
+ stopping
+
+When the final gen1 buffer completes, the write master can signal another completion before the register update acknowledges the frame-drop change. There is no queued buffer for that completion. Skip it before changing the software ping/pong index or looking up the next buffer.
+
+Record the final buffer under the output lock, in the same critical section that changes the state to STOPPING. The register-update and flush paths can then retrieve that buffer as soon as they take the lock.
+
+Signed-off-by: Timothy Schmidt <timschmidt@gmail.com>
+(cherry picked from commit 2150f900adaf27c32a5bd620bd12ab04345aa99b)
+---
+ .../media/platform/qcom/camss/camss-vfe-gen1.c    | 15 ++++++++++-----
+ 1 file changed, 10 insertions(+), 5 deletions(-)
+
+diff --git a/drivers/media/platform/qcom/camss/camss-vfe-gen1.c b/drivers/media/platform/qcom/camss/camss-vfe-gen1.c
+index db040fe685f6..7989e1cb9e6d 100644
+--- a/drivers/media/platform/qcom/camss/camss-vfe-gen1.c
++++ b/drivers/media/platform/qcom/camss/camss-vfe-gen1.c
+@@ -652,6 +652,10 @@ static void vfe_isr_wm_done(struct vfe_device *vfe, u8 wm)
+ 	}
+ 	output = &vfe->line[vfe->wm_output_map[wm]].output;
+ 
++	/* The register update owns the final buffer while the output stops. */
++	if (output->state == VFE_OUTPUT_STOPPING)
++		goto out_unlock;
++
+ 	if (output->gen1.active_buf == active_index && 0) {
+ 		dev_err_ratelimited(vfe->camss->dev,
+ 				    "Active buffer mismatch!\n");
+@@ -688,12 +692,13 @@ static void vfe_isr_wm_done(struct vfe_device *vfe, u8 wm)
+ 		for (i = 0; i < output->wm_num; i++)
+ 			vfe->ops_gen1->wm_set_pong_addr(vfe, output->wm_idx[i], new_addr[i]);
+ 
+-	spin_unlock_irqrestore(&vfe->output_lock, flags);
+-
+-	if (output->state == VFE_OUTPUT_STOPPING)
++	if (output->state == VFE_OUTPUT_STOPPING) {
+ 		output->last_buffer = ready_buf;
+-	else
+-		vb2_buffer_done(&ready_buf->vb.vb2_buf, VB2_BUF_STATE_DONE);
++		goto out_unlock;
++	}
++
++	spin_unlock_irqrestore(&vfe->output_lock, flags);
++	vb2_buffer_done(&ready_buf->vb.vb2_buf, VB2_BUF_STATE_DONE);
+ 
+ 	return;
+ 
+-- 
+2.56.0
+

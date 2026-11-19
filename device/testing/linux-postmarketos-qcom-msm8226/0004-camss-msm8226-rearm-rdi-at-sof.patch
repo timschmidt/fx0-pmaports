@@ -1,0 +1,131 @@
+From 539a7cccccac57f48e112bf5f8b6b95eca91cc5a Mon Sep 17 00:00:00 2001
+From: Timothy Schmidt <timschmidt@gmail.com>
+Date: Thu, 19 Nov 2026 17:35:21 -0500
+Subject: [PATCH 4/4] media: qcom: camss: rearm MSM8226 RDI capture at frame
+ start
+
+On the Fx0, continuous RDI capture occasionally waits an entire
+frame-drop period even though the previous update was acknowledged.
+Increasing sensor vertical blanking changes the completion-to-update
+interval from less than 160 microseconds to more than 7 milliseconds
+and avoids the observed stalls.
+
+Defer the continuous-output rearm from the write-master completion to
+the next RDI start-of-frame interrupt on MSM8226. The existing pattern
+provides a slot for that frame while the next rearm is requested. This
+allows the update more time before the following frame starts.
+
+Complete buffer replacement in the write-master handler as before.
+Discard the pending rearm when programming a different pattern or
+when disabling the output. Keep startup, queue drain and restart
+updates immediate.
+
+Signed-off-by: Timothy Schmidt <timschmidt@gmail.com>
+(cherry picked from commit ecf268bf5d66c17e545a1a06792ec679cdaf3eaa)
+---
+ .../platform/qcom/camss/camss-vfe-gen1.c      | 21 +++++++++++++++----
+ drivers/media/platform/qcom/camss/camss-vfe.h |  5 ++++-
+ drivers/media/platform/qcom/camss/camss.c     |  1 +
+ 3 files changed, 22 insertions(+), 5 deletions(-)
+
+diff --git a/drivers/media/platform/qcom/camss/camss-vfe-gen1.c b/drivers/media/platform/qcom/camss/camss-vfe-gen1.c
+index 7989e1cb9e6d..0fdd73ddfca4 100644
+--- a/drivers/media/platform/qcom/camss/camss-vfe-gen1.c
++++ b/drivers/media/platform/qcom/camss/camss-vfe-gen1.c
+@@ -44,7 +44,9 @@ static int vfe_disable_output(struct vfe_line *line)
+ 
+ 	spin_lock_irqsave(&vfe->output_lock, flags);
+ 
+-	output->gen1.wait_sof = 1;
++	output->gen1.disabling = true;
++	output->gen1.rearm_pending = false;
++	output->gen1.wait_sof = true;
+ 	spin_unlock_irqrestore(&vfe->output_lock, flags);
+ 
+ 	time = wait_for_completion_timeout(&output->sof, msecs_to_jiffies(VFE_NEXT_SOF_MS));
+@@ -152,6 +154,8 @@ static void vfe_output_frame_drop(struct vfe_device *vfe,
+ 	u8 drop_period;
+ 	unsigned int i;
+ 
++	output->gen1.rearm_pending = false;
++
+ 	/* We need to toggle update period to be valid on next frame */
+ 	output->drop_update_idx++;
+ 	output->drop_update_idx %= VFE_FRAME_DROP_UPDATES;
+@@ -240,7 +244,8 @@ static int vfe_enable_output(struct vfe_line *line)
+ 	}
+ 
+ 	output->sequence = 0;
+-	output->gen1.wait_sof = 0;
++	output->gen1.wait_sof = false;
++	output->gen1.disabling = false;
+ 	output->wait_reg_update = 0;
+ 	reinit_completion(&output->sof);
+ 	reinit_completion(&output->reg_update);
+@@ -433,9 +438,15 @@ static void vfe_output_update_pong_addr(struct vfe_device *vfe,
+ static void vfe_buf_update_wm_on_next(struct vfe_device *vfe,
+ 				      struct vfe_output *output)
+ {
++	struct vfe_line *line = container_of(output, struct vfe_line, output);
++
+ 	switch (output->state) {
+ 	case VFE_OUTPUT_CONTINUOUS:
+-		vfe_output_frame_drop(vfe, output, 3);
++		/* On MSM8226 RDI, allow a full frame for the update. */
++		if (vfe->res->rdi_rearm_at_sof && line->id != VFE_LINE_PIX)
++			output->gen1.rearm_pending = !output->gen1.disabling;
++		else
++			vfe_output_frame_drop(vfe, output, 3);
+ 		break;
+ 	case VFE_OUTPUT_SINGLE:
+ 	default:
+@@ -539,8 +550,10 @@ static void vfe_isr_sof(struct vfe_device *vfe, enum vfe_line_id line_id)
+ 	spin_lock_irqsave(&vfe->output_lock, flags);
+ 	output = &vfe->line[line_id].output;
+ 	if (output->gen1.wait_sof) {
+-		output->gen1.wait_sof = 0;
++		output->gen1.wait_sof = false;
+ 		complete(&output->sof);
++	} else if (output->gen1.rearm_pending && output->state == VFE_OUTPUT_CONTINUOUS) {
++		vfe_output_frame_drop(vfe, output, 3);
+ 	}
+ 	spin_unlock_irqrestore(&vfe->output_lock, flags);
+ }
+diff --git a/drivers/media/platform/qcom/camss/camss-vfe.h b/drivers/media/platform/qcom/camss/camss-vfe.h
+index b3b894772371..5bb7e55a735e 100644
+--- a/drivers/media/platform/qcom/camss/camss-vfe.h
++++ b/drivers/media/platform/qcom/camss/camss-vfe.h
+@@ -69,7 +69,9 @@ struct vfe_output {
+ 	union {
+ 		struct {
+ 			int active_buf;
+-			int wait_sof;
++			bool wait_sof;
++			bool disabling;
++			bool rearm_pending;
+ 		} gen1;
+ 		struct {
+ 			int active_num;
+@@ -136,6 +138,7 @@ struct vfe_subdev_resources {
+ 	bool is_lite;
+ 	u8 line_num;
+ 	bool has_pd;
++	bool rdi_rearm_at_sof;
+ 	char *pd_name;
+ 	const struct vfe_hw_ops *hw_ops;
+ 	const struct camss_formats *formats_rdi;
+diff --git a/drivers/media/platform/qcom/camss/camss.c b/drivers/media/platform/qcom/camss/camss.c
+index b4e9b90a75f9..66782dcc5e35 100644
+--- a/drivers/media/platform/qcom/camss/camss.c
++++ b/drivers/media/platform/qcom/camss/camss.c
+@@ -261,6 +261,7 @@ static const struct camss_subdev_resources vfe_res_8x26[] = {
+ 		.interrupt = { "vfe0" },
+ 		.vfe = {
+ 			.line_num = 3,
++			.rdi_rearm_at_sof = true,
+ 			.hw_ops = &vfe_ops_4_1,
+ 			.formats_rdi = &vfe_formats_rdi_8x16,
+ 			.formats_pix = &vfe_formats_pix_8x16
+-- 
+2.56.0
+

@@ -1,0 +1,66 @@
+From 8d824ef91fa009554965dbd3c20151148b564ee9 Mon Sep 17 00:00:00 2001
+From: Timothy Schmidt <timschmidt@gmail.com>
+Date: Thu, 19 Nov 2026 15:28:35 -0500
+Subject: [PATCH 2/4] media: qcom: camss: reject MSM8226 system sleep during
+ capture
+
+MSM8226 CAMSS system sleep calls the runtime PM operations, which
+handle interconnect votes. They leave an active VFE pipeline running.
+The sensor and IOMMU system-sleep callbacks can then remove resources
+from that pipeline.
+
+Reject the transition in prepare when a VFE stream is active. The
+device PM core reaches prepare before any suspend callbacks. Check
+each VFE under its existing stream lock and scope the gate to the
+MSM8226 compatible.
+
+(cherry picked from commit c595fe52cc30df4430cf752a831e8f4616bd6993)
+---
+ drivers/media/platform/qcom/camss/camss.c | 24 +++++++++++++++++++++++
+ 1 file changed, 24 insertions(+)
+
+diff --git a/drivers/media/platform/qcom/camss/camss.c b/drivers/media/platform/qcom/camss/camss.c
+index 6a1f117073d9..b4e9b90a75f9 100644
+--- a/drivers/media/platform/qcom/camss/camss.c
++++ b/drivers/media/platform/qcom/camss/camss.c
+@@ -4622,6 +4622,29 @@ static const struct of_device_id camss_dt_match[] = {
+ 
+ MODULE_DEVICE_TABLE(of, camss_dt_match);
+ 
++static int camss_prepare(struct device *dev)
++{
++	struct camss *camss = dev_get_drvdata(dev);
++	unsigned int i;
++
++	if (!of_device_is_compatible(dev->of_node, "qcom,msm8226-camss"))
++		return 0;
++
++	/* The MSM8226 system-sleep callbacks do not stop the VFE pipeline. */
++	for (i = 0; i < camss->res->vfe_num; i++) {
++		struct vfe_device *vfe = &camss->vfe[i];
++		bool streaming;
++
++		mutex_lock(&vfe->stream_lock);
++		streaming = vfe->stream_count != 0;
++		mutex_unlock(&vfe->stream_lock);
++		if (streaming)
++			return -EBUSY;
++	}
++
++	return 0;
++}
++
+ static int __maybe_unused camss_runtime_suspend(struct device *dev)
+ {
+ 	struct camss *camss = dev_get_drvdata(dev);
+@@ -4656,6 +4679,7 @@ static int __maybe_unused camss_runtime_resume(struct device *dev)
+ }
+ 
+ static const struct dev_pm_ops camss_pm_ops = {
++	.prepare = pm_sleep_ptr(camss_prepare),
+ 	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
+ 				pm_runtime_force_resume)
+ 	SET_RUNTIME_PM_OPS(camss_runtime_suspend, camss_runtime_resume, NULL)
+-- 
+2.56.0
+

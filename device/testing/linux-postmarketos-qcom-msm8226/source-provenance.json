@@ -16,5 +16,15 @@
   "prior_unsigned_fixture_certificate_DER_SHA256": "ecc82a4adee7f57cad6f095faf644f878c3076f734ba69e0d1799e366d68cf86",
   "normal_signed_builds_not_yet_qualified": true,
   "reader_source_commit": "c7ce2bb8cf78e852eaea6024188c4cf21a4cb355",
-  "experimental_CPU_system_sleep_promoted": false
+  "experimental_CPU_system_sleep_promoted": false,
+  "installed_source_parent": "0f2c00771fd1fa728c5775a4b8a69d440d31d527",
+  "candidate_source_commit": "539a7cccccac57f48e112bf5f8b6b95eca91cc5a",
+  "candidate_package_version": "6.18.64-r3",
+  "packaged_camera_patches": [
+    "0002-camss-msm8226-guard-active-stream-sleep.patch",
+    "0003-camss-gen1-ignore-wm-completion-while-stopping.patch",
+    "0004-camss-msm8226-rearm-rdi-at-sof.patch"
+  ],
+  "camera_source_equivalent_to_RAM_candidate": "ecf268bf5d66c17e545a1a06792ec679cdaf3eaa",
+  "RAM_candidate_trial_review": "652f19c0d20058b487b3d12b899cd3aaf80c668c"
 }
