@@ -1,0 +1,187 @@
+diff --git a/Documentation/devicetree/bindings/power/supply/qcom,pm8941-charger.yaml b/Documentation/devicetree/bindings/power/supply/qcom,pm8941-charger.yaml
+index 4b4044bb61f7d584c10304bbf0a7d720a6b5b5b2..7a223af5f7353c835329f1ab301a8b0c0d03fd5b 100644
+--- a/Documentation/devicetree/bindings/power/supply/qcom,pm8941-charger.yaml
++++ b/Documentation/devicetree/bindings/power/supply/qcom,pm8941-charger.yaml
+@@ -59,6 +59,13 @@ properties:
+ 
+   monitored-battery: true
+ 
++  io-channels:
++    maxItems: 1
++    description: Battery sense voltage ADC input.
++
++  io-channel-names:
++    const: battery-voltage
++
+   interrupts:
+     items:
+       - description: charge done
+@@ -177,6 +184,10 @@ properties:
+       this regulator comes from usb_otg_in-supply.
+ 
+ dependencies:
++  io-channels:
++    - io-channel-names
++  io-channel-names:
++    - io-channels
+   charge-policy:
+     - qcom,software-charge-control
+   qcom,boot-charge-inhibited:
+diff --git a/arch/arm/boot/dts/qcom/qcom-msm8926-lg-madai.dts b/arch/arm/boot/dts/qcom/qcom-msm8926-lg-madai.dts
+index fdbd0cd1bb63dffd3096fa57e47f24c09f2af837..17c1aaffbbb1ca13a6eb6beaab2edded9757dee1 100644
+--- a/arch/arm/boot/dts/qcom/qcom-msm8926-lg-madai.dts
++++ b/arch/arm/boot/dts/qcom/qcom-msm8926-lg-madai.dts
+@@ -448,6 +448,9 @@ &sdhc_1 {
+ };
+ 
+ &smbb {
++	io-channels = <&pm8226_vadc VADC_VBAT_SNS>;
++	io-channel-names = "battery-voltage";
++
+ 	qcom,software-charge-control;
+ 	qcom,usb-gadget-current-limit;
+ 	qcom,fast-charge-safe-current = <1500000>;
+diff --git a/drivers/power/supply/qcom_smbb.c b/drivers/power/supply/qcom_smbb.c
+index 6090e9c6c4ebc7ae80b33141c4173a7522c1f500..d054c3865472a632a4a20dfd15362f7d7a08caf7 100644
+--- a/drivers/power/supply/qcom_smbb.c
++++ b/drivers/power/supply/qcom_smbb.c
+@@ -131,6 +131,18 @@ enum smbb_attr {
+ 	_ATTR_CNT,
+ };
+ 
++static const enum power_supply_property smbb_battery_properties[] = {
++	POWER_SUPPLY_PROP_STATUS,
++	POWER_SUPPLY_PROP_CHARGE_BEHAVIOUR,
++	POWER_SUPPLY_PROP_HEALTH,
++	POWER_SUPPLY_PROP_PRESENT,
++	POWER_SUPPLY_PROP_CHARGE_TYPE,
++	POWER_SUPPLY_PROP_CURRENT_MAX,
++	POWER_SUPPLY_PROP_VOLTAGE_MAX,
++	POWER_SUPPLY_PROP_VOLTAGE_MIN_DESIGN,
++	POWER_SUPPLY_PROP_TECHNOLOGY,
++};
++
+ struct smbb_charger {
+ 	unsigned int revision;
+ 	unsigned int addr;
+@@ -156,6 +168,9 @@ struct smbb_charger {
+ 	bool usb_input_control;
+ 	bool usb_budget_managed;
+ 	struct power_supply_desc usb_desc;
++	struct power_supply_desc bat_desc;
++	enum power_supply_property bat_properties[ARRAY_SIZE(smbb_battery_properties) + 1];
++	struct iio_channel *vbat;
+ 	struct power_supply *usb_psy;
+ 	struct power_supply *dc_psy;
+ 	struct power_supply *bat_psy;
+@@ -903,6 +918,25 @@ static int smbb_set_battery_limit(struct smbb_charger *chg,
+ 	return ret;
+ }
+ 
++static int smbb_battery_get_voltage(struct smbb_charger *chg,
++				    unsigned long status, int *value)
++{
++	int ret, microvolts;
++
++	if (!IS_REACHABLE(CONFIG_IIO) || !chg->vbat ||
++	    !(status & STATUS_BAT_PRESENT))
++		return -ENODATA;
++
++	ret = iio_read_channel_processed_scale(chg->vbat, &microvolts, 1000);
++	if (ret < 0)
++		return ret;
++	if (microvolts <= 0 || !(READ_ONCE(chg->status) & STATUS_BAT_PRESENT))
++		return -ENODATA;
++
++	*value = microvolts;
++	return 0;
++}
++
+ static int smbb_battery_get_property(struct power_supply *psy,
+ 		enum power_supply_property psp,
+ 		union power_supply_propval *val)
+@@ -959,6 +993,9 @@ static int smbb_battery_get_property(struct power_supply *psy,
+ 	case POWER_SUPPLY_PROP_PRESENT:
+ 		val->intval = !!(status & STATUS_BAT_PRESENT);
+ 		break;
++	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
++		rc = smbb_battery_get_voltage(chg, status, &val->intval);
++		break;
+ 	case POWER_SUPPLY_PROP_CURRENT_MAX:
+ 		mutex_lock(&chg->charge_lock);
+ 		if (chg->charge_inhibit & SMBB_INHIBIT_FAULT)
+@@ -1046,18 +1083,6 @@ static enum power_supply_property smbb_usb_input_properties[] = {
+ 	POWER_SUPPLY_PROP_CHARGE_CONTROL_LIMIT_MAX,
+ };
+ 
+-static enum power_supply_property smbb_battery_properties[] = {
+-	POWER_SUPPLY_PROP_STATUS,
+-	POWER_SUPPLY_PROP_CHARGE_BEHAVIOUR,
+-	POWER_SUPPLY_PROP_HEALTH,
+-	POWER_SUPPLY_PROP_PRESENT,
+-	POWER_SUPPLY_PROP_CHARGE_TYPE,
+-	POWER_SUPPLY_PROP_CURRENT_MAX,
+-	POWER_SUPPLY_PROP_VOLTAGE_MAX,
+-	POWER_SUPPLY_PROP_VOLTAGE_MIN_DESIGN,
+-	POWER_SUPPLY_PROP_TECHNOLOGY,
+-};
+-
+ static const struct reg_off_mask_default {
+ 	unsigned int offset;
+ 	unsigned int mask;
+@@ -1231,6 +1256,34 @@ static void smbb_charge_cleanup(void *data)
+ 		dev_err(chg->dev, "failed to inhibit charging at cleanup: %d\n", ret);
+ }
+ 
++static int smbb_battery_init_voltage(struct smbb_charger *chg)
++{
++	struct device *dev = chg->dev;
++	enum iio_chan_type type;
++	struct iio_channel *channel;
++	int ret;
++
++	if (!IS_REACHABLE(CONFIG_IIO) ||
++	    !of_property_present(dev->of_node, "io-channels"))
++		return 0;
++
++	channel = devm_iio_channel_get(dev, "battery-voltage");
++	if (IS_ERR(channel))
++		return dev_err_probe(dev, PTR_ERR(channel),
++				     "battery voltage channel unavailable\n");
++	ret = iio_get_channel_type(channel, &type);
++	if (ret)
++		return dev_err_probe(dev, ret, "cannot read battery voltage channel type\n");
++	if (type != IIO_VOLTAGE)
++		return dev_err_probe(dev, -EINVAL, "expected a voltage channel\n");
++
++	chg->vbat = channel;
++	memcpy(chg->bat_properties, smbb_battery_properties, sizeof(smbb_battery_properties));
++	chg->bat_properties[chg->bat_desc.num_properties++] = POWER_SUPPLY_PROP_VOLTAGE_NOW;
++	chg->bat_desc.properties = chg->bat_properties;
++	return 0;
++}
++
+ static int smbb_charger_probe(struct platform_device *pdev)
+ {
+ 	struct power_supply_config bat_cfg = {};
+@@ -1270,6 +1323,11 @@ static int smbb_charger_probe(struct platform_device *pdev)
+ 	if (rc)
+ 		return rc;
+ 
++	chg->bat_desc = bat_psy_desc;
++	rc = smbb_battery_init_voltage(chg);
++	if (rc)
++		return rc;
++
+ 	rc = regmap_read(chg->regmap, chg->addr + SMBB_MISC_REV2, &chg->revision);
+ 	if (rc) {
+ 		dev_err(&pdev->dev, "unable to read revision\n");
+@@ -1310,7 +1368,7 @@ static int smbb_charger_probe(struct platform_device *pdev)
+ 	bat_cfg.drv_data = chg;
+ 	bat_cfg.fwnode = dev_fwnode(&pdev->dev);
+ 	chg->bat_psy = devm_power_supply_register(&pdev->dev,
+-						  &bat_psy_desc,
++						  &chg->bat_desc,
+ 						  &bat_cfg);
+ 	if (IS_ERR(chg->bat_psy)) {
+ 		dev_err(&pdev->dev, "failed to register battery\n");

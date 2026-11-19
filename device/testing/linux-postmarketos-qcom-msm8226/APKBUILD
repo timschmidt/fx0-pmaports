@@ -3,7 +3,7 @@ maintainer="Newbyte <newbie13xd@gmail.com>"
 _flavor="postmarketos-qcom-msm8226"
 pkgname=linux-$_flavor
 pkgver=6.18.64
-pkgrel=0
+pkgrel=2
 pkgdesc="Mainline Kernel fork for APQ8026/MSM8226/MSM8926 devices"
 arch="armv7"
 _carch="arm"
@@ -37,6 +37,7 @@ _commit="c3e72d14babc2e875b89cadde5ed57bb54b11a0b"
 source="
 	linux-fx0-$_commit.tar.gz::https://github.com/timschmidt/fx0-linux/archive/$_commit.tar.gz
 	$_config
+	0001-fx0-smbb-battery-voltage.patch
 "
 builddir="$srcdir/fx0-linux-$_commit"
 
@@ -88,4 +89,5 @@ package() {
 sha512sums="
 21a77e9db13ca82cdae13457b19db23b47dd665e56c349d9839419f1132710599cee02342e56b5c216fcadfb0fdc4f2fe62759828dea490eab34978dc5010d71  linux-fx0-c3e72d14babc2e875b89cadde5ed57bb54b11a0b.tar.gz
 85fd0429f280ad3d478640c6315a181fb2e32cfd385a753b951daab811fb38e5efdbcccb5b8f17d2ee49c677ff1d7f2d72f3117f5b8864daa1e92b1b16d878bf  config-postmarketos-qcom-msm8226.armv7
+8b40acb615e90a18eaf6373e12dc4ba55054951a78dee7e62276dba941e761b2a8920b925945dc7aabcf28122c224c7de2eae4bbd02d709d4e3da75142db03ae  0001-fx0-smbb-battery-voltage.patch
 "
