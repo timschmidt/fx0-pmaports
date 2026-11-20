@@ -9,19 +9,19 @@ the handset shows no battery level. When the firmware identifies the
 pack and publishes its battery profile, expose an OCV-table capacity
 estimate from the measured battery voltage, using the managed policy's
 thermistor reading when fresh and 25 C otherwise. Repeat the last
-estimate on a transient read failure, and stay below 100 % while
-charging.
+estimate on a transient read failure, stay below 100 % while
+charging and report 100 % once the charger is idle and full.
 
 PM8226 also ends a charge without raising chg-done, so an idle charger
 with input present was reported as discharging. Report full when
 charging is allowed, the charger is idle and the battery is at or above
 the active recharge threshold.
 ---
- drivers/power/supply/qcom_smbb.c | 74 +++++++++++++++++++++++++++++++-
- 1 file changed, 73 insertions(+), 1 deletion(-)
+ drivers/power/supply/qcom_smbb.c | 78 +++++++++++++++++++++++++++++++-
+ 1 file changed, 77 insertions(+), 1 deletion(-)
 
 diff --git a/drivers/power/supply/qcom_smbb.c b/drivers/power/supply/qcom_smbb.c
-index 7630f8dab..459a58856 100644
+index 7630f8dab..62afd7a13 100644
 --- a/drivers/power/supply/qcom_smbb.c
 +++ b/drivers/power/supply/qcom_smbb.c
 @@ -166,6 +166,9 @@ struct smbb_charger {
@@ -43,17 +43,34 @@ index 7630f8dab..459a58856 100644
  	struct iio_channel *vbat;
  	struct power_supply *usb_psy;
  	struct power_supply *dc_psy;
-@@ -1042,6 +1045,64 @@ static int smbb_battery_get_voltage(struct smbb_charger *chg,
+@@ -1042,6 +1045,68 @@ static int smbb_battery_get_voltage(struct smbb_charger *chg,
  	return 0;
  }
  
++/*
++ * PM8226 ends a charge cycle without raising chg-done. With input present,
++ * charging allowed and the charger idle, a battery at or above the recharge
++ * threshold is full: the charger will not restart until it drops below it.
++ */
++static bool smbb_battery_idle_full(struct smbb_charger *chg, unsigned long status)
++{
++	int microvolts;
++
++	/* The caller already established that charging is not inhibited. */
++	if (!chg->software_control)
++		return false;
++	if (smbb_battery_get_voltage(chg, status, &microvolts))
++		return false;
++	return microvolts >= READ_ONCE(chg->attr[ATTR_CHG_VDET]);
++}
++
 +/*
 + * Estimate state of charge from the battery voltage and the firmware-provided
 + * OCV tables. Use the managed policy's fresh thermistor reading when available
 + * and 25 C otherwise. A transient voltage read failure repeats the last
 + * estimate so userspace never sees a spurious empty battery. While charging
 + * the terminal voltage is above OCV, so never report 100 % before the charger
-+ * is idle.
++ * is idle; once it is idle above the recharge threshold, report 100 %.
 + */
 +static int smbb_battery_get_capacity(struct smbb_charger *chg,
 +				     unsigned long status, int *value)
@@ -77,6 +94,10 @@ index 7630f8dab..459a58856 100644
 +	if (!ret) {
 +		if (status & (STATUS_CHG_FAST | STATUS_CHG_TRKL))
 +			capacity = min(capacity, 99);
++		else if ((status & (STATUS_DCIN_VALID | STATUS_USBIN_VALID)) &&
++			 (status & STATUS_BAT_OK) && !READ_ONCE(chg->charge_inhibit) &&
++			 microvolts >= READ_ONCE(chg->attr[ATTR_CHG_VDET]))
++			capacity = 100;
 +		chg->last_capacity = clamp(capacity, 0, 100);
 +		chg->capacity_valid = true;
 +	}
@@ -88,27 +109,10 @@ index 7630f8dab..459a58856 100644
 +	return ret;
 +}
 +
-+/*
-+ * PM8226 ends a charge cycle without raising chg-done. With input present,
-+ * charging allowed and the charger idle, a battery at or above the recharge
-+ * threshold is full: the charger will not restart until it drops below it.
-+ */
-+static bool smbb_battery_idle_full(struct smbb_charger *chg, unsigned long status)
-+{
-+	int microvolts;
-+
-+	/* The caller already established that charging is not inhibited. */
-+	if (!chg->software_control)
-+		return false;
-+	if (smbb_battery_get_voltage(chg, status, &microvolts))
-+		return false;
-+	return microvolts >= READ_ONCE(chg->attr[ATTR_CHG_VDET]);
-+}
-+
  static int smbb_battery_get_property(struct power_supply *psy,
  		enum power_supply_property psp,
  		union power_supply_propval *val)
-@@ -1072,6 +1133,8 @@ static int smbb_battery_get_property(struct power_supply *psy,
+@@ -1072,6 +1137,8 @@ static int smbb_battery_get_property(struct power_supply *psy,
  				val->intval = POWER_SUPPLY_STATUS_NOT_CHARGING;
  			else if (status & (STATUS_CHG_FAST | STATUS_CHG_TRKL))
  				val->intval = POWER_SUPPLY_STATUS_CHARGING;
@@ -117,7 +121,7 @@ index 7630f8dab..459a58856 100644
  			else
  				val->intval = POWER_SUPPLY_STATUS_DISCHARGING;
  		}
-@@ -1101,6 +1164,9 @@ static int smbb_battery_get_property(struct power_supply *psy,
+@@ -1101,6 +1168,9 @@ static int smbb_battery_get_property(struct power_supply *psy,
  	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
  		rc = smbb_battery_get_voltage(chg, status, &val->intval);
  		break;
@@ -127,7 +131,7 @@ index 7630f8dab..459a58856 100644
  	case POWER_SUPPLY_PROP_CURRENT_MAX:
  		mutex_lock(&chg->charge_lock);
  		if (chg->charge_inhibit & SMBB_INHIBIT_FAULT)
-@@ -1386,6 +1452,11 @@ static int smbb_battery_init_voltage(struct smbb_charger *chg)
+@@ -1386,6 +1456,11 @@ static int smbb_battery_init_voltage(struct smbb_charger *chg)
  	chg->vbat = channel;
  	memcpy(chg->bat_properties, smbb_battery_properties, sizeof(smbb_battery_properties));
  	chg->bat_properties[chg->bat_desc.num_properties++] = POWER_SUPPLY_PROP_VOLTAGE_NOW;
@@ -139,7 +143,7 @@ index 7630f8dab..459a58856 100644
  	chg->bat_desc.properties = chg->bat_properties;
  	return 0;
  }
-@@ -1677,6 +1748,7 @@ static int smbb_policy_apply(struct smbb_policy *policy, int error,
+@@ -1677,6 +1752,7 @@ static int smbb_policy_apply(struct smbb_policy *policy, int error,
  				 SMBB_INHIBIT_SUSPEND);
  	policy->last_valid_ns = started;
  	chg->policy_valid_until_ns = started + (u64)SMBB_POLICY_MAX_AGE_MS * NSEC_PER_MSEC;
