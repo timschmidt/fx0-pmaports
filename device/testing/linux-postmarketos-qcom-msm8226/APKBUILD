@@ -3,7 +3,7 @@ maintainer="Newbyte <newbie13xd@gmail.com>"
 _flavor="postmarketos-qcom-msm8226"
 pkgname=linux-$_flavor
 pkgver=6.18.64
-pkgrel=3
+pkgrel=4
 pkgdesc="Mainline Kernel fork for APQ8026/MSM8226/MSM8926 devices"
 arch="armv7"
 _carch="arm"
@@ -41,6 +41,10 @@ source="
 	0002-camss-msm8226-guard-active-stream-sleep.patch
 	0003-camss-gen1-ignore-wm-completion-while-stopping.patch
 	0004-camss-msm8226-rearm-rdi-at-sof.patch
+	0005-camss-clear-vfe-buffer-slots-when-flushing.patch
+	0006-camss-unwind-partially-started-pipeline.patch
+	0007-camss-msm8226-preserve-rdi-capture-across-sleep.patch
+	0008-camss-msm8226-count-csid-vfe-references.patch
 "
 builddir="$srcdir/fx0-linux-$_commit"
 
@@ -96,4 +100,8 @@ sha512sums="
 ed49d01cea77104e642546f1fabf2ab331a1c3bc1247eb78e55d7e1ab18df4a3392a4e3ca45753cb1ff78102605793a0da44761b4dea8567a4a1e7f65b76c348  0002-camss-msm8226-guard-active-stream-sleep.patch
 48240ceb746f918e7f605404964d4941f175ad6081844fc298fb5fb3b2cb1c302836bef1f42f88a4af7a635564d9421059e1946a035afc52b9c21cbced7e5d13  0003-camss-gen1-ignore-wm-completion-while-stopping.patch
 d1ef1184efc51ebdc164b6f9f18cbb53db793d964a8b6ed2dc676d6bae8de5a555a2e576d207ec0655e833fc2e588c6083d1da2a3ce0c87899fa1c4452e0f9c0  0004-camss-msm8226-rearm-rdi-at-sof.patch
+269c60cd5257f6f3d932330105b5206e973f31d0f6fa1930915d690f862ac899a75fd98ddf48b3c6b3f0e0517377422231459beaef2a334fda99eeb8864e438f  0005-camss-clear-vfe-buffer-slots-when-flushing.patch
+300249b87f656f1b5a4e021dc1b5341d6af11d1d70eb763476bc1c02f5ac2bcfa7a50261a182c210c823602d3d3c846cfc263694611b8ddd3ba9c0a131eadc6a  0006-camss-unwind-partially-started-pipeline.patch
+ccb6baf724a73379e4abf728d4ffccd0d7ebc45652528ccf2e2371de4824003138cc5811793bb9ad43ede3246eb5614a0b307cf29cc9e9910282407b9c1e1bc9  0007-camss-msm8226-preserve-rdi-capture-across-sleep.patch
+18d052240a60100ae99edb26aded7c6004d2483a0ee0c67147c384d8d47a3dff431846a7d5918e21109062831c470624971ecffbb3a0b2a34f8084d96eadacf5  0008-camss-msm8226-count-csid-vfe-references.patch
 "

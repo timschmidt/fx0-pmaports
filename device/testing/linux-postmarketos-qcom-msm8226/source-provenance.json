@@ -18,13 +18,19 @@
   "reader_source_commit": "c7ce2bb8cf78e852eaea6024188c4cf21a4cb355",
   "experimental_CPU_system_sleep_promoted": false,
   "installed_source_parent": "0f2c00771fd1fa728c5775a4b8a69d440d31d527",
-  "candidate_source_commit": "539a7cccccac57f48e112bf5f8b6b95eca91cc5a",
-  "candidate_package_version": "6.18.64-r3",
+  "candidate_source_commit": "7ed6a2856b34f1a1f2b68c207c713f17f22c9a79",
+  "candidate_package_version": "6.18.64-r4",
   "packaged_camera_patches": [
     "0002-camss-msm8226-guard-active-stream-sleep.patch",
     "0003-camss-gen1-ignore-wm-completion-while-stopping.patch",
-    "0004-camss-msm8226-rearm-rdi-at-sof.patch"
+    "0004-camss-msm8226-rearm-rdi-at-sof.patch",
+    "0005-camss-clear-vfe-buffer-slots-when-flushing.patch",
+    "0006-camss-unwind-partially-started-pipeline.patch",
+    "0007-camss-msm8226-preserve-rdi-capture-across-sleep.patch",
+    "0008-camss-msm8226-count-csid-vfe-references.patch"
   ],
-  "camera_source_equivalent_to_RAM_candidate": "ecf268bf5d66c17e545a1a06792ec679cdaf3eaa",
-  "RAM_candidate_trial_review": "652f19c0d20058b487b3d12b899cd3aaf80c668c"
+  "camera_source_equivalent_to_RAM_candidate": "7ed6a2856b34f1a1f2b68c207c713f17f22c9a79",
+  "RAM_candidate_trial_review": "0bf257e7ad3f2db12ff399c0998f99ac0d5e85b0",
+  "patched_archive_git_tree": "ca9ed4d8ef3b557978b3d3422492cdfafe0a8a66",
+  "patched_archive_tree_equals_candidate_commit_tree": true
 }
