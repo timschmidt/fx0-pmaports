@@ -1,0 +1,33 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Timothy Schmidt <timschmidt@gmail.com>
+Date: Thu, 19 Nov 2026 01:03:36 -0500
+Subject: [PATCH] power: supply: qcom_smbb: refresh both battery temperature
+ flags
+
+Replace the cached OK and HOT flags together after each successful status read. Without clearing HOT, a later cold indication after a hot interrupt is reported as Overheat. Leave the cached state alone when the register read fails.
+---
+ drivers/power/supply/qcom_smbb.c | 10 ++++------
+ 1 file changed, 4 insertions(+), 6 deletions(-)
+
+diff --git a/drivers/power/supply/qcom_smbb.c b/drivers/power/supply/qcom_smbb.c
+index d054c3865..7eeaada33 100644
+--- a/drivers/power/supply/qcom_smbb.c
++++ b/drivers/power/supply/qcom_smbb.c
+@@ -472,13 +472,11 @@ static irqreturn_t smbb_bat_temp_handler(int irq, void *_data)
+ 		return IRQ_HANDLED;
+ 
+ 	mutex_lock(&chg->statlock);
+-	if (val & TEMP_STATUS_OK) {
++	chg->status &= ~(STATUS_BAT_OK | STATUS_BAT_HOT);
++	if (val & TEMP_STATUS_OK)
+ 		chg->status |= STATUS_BAT_OK;
+-	} else {
+-		chg->status &= ~STATUS_BAT_OK;
+-		if (val & TEMP_STATUS_HOT)
+-			chg->status |= STATUS_BAT_HOT;
+-	}
++	else if (val & TEMP_STATUS_HOT)
++		chg->status |= STATUS_BAT_HOT;
+ 	mutex_unlock(&chg->statlock);
+ 
+ 	power_supply_changed(chg->bat_psy);

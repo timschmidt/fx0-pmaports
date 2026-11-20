@@ -3,7 +3,7 @@ maintainer="Newbyte <newbie13xd@gmail.com>"
 _flavor="postmarketos-qcom-msm8226"
 pkgname=linux-$_flavor
 pkgver=6.18.64
-pkgrel=4
+pkgrel=5
 pkgdesc="Mainline Kernel fork for APQ8026/MSM8226/MSM8926 devices"
 arch="armv7"
 _carch="arm"
@@ -45,6 +45,9 @@ source="
 	0006-camss-unwind-partially-started-pipeline.patch
 	0007-camss-msm8226-preserve-rdi-capture-across-sleep.patch
 	0008-camss-msm8226-count-csid-vfe-references.patch
+	0009-smbb-refresh-battery-temperature-flags.patch
+	0010-smbb-gate-stock-fx0-comparator-window.patch
+	0011-smbb-track-managed-recharge-threshold.patch
 "
 builddir="$srcdir/fx0-linux-$_commit"
 
@@ -95,7 +98,7 @@ package() {
 
 sha512sums="
 21a77e9db13ca82cdae13457b19db23b47dd665e56c349d9839419f1132710599cee02342e56b5c216fcadfb0fdc4f2fe62759828dea490eab34978dc5010d71  linux-fx0-c3e72d14babc2e875b89cadde5ed57bb54b11a0b.tar.gz
-85fd0429f280ad3d478640c6315a181fb2e32cfd385a753b951daab811fb38e5efdbcccb5b8f17d2ee49c677ff1d7f2d72f3117f5b8864daa1e92b1b16d878bf  config-postmarketos-qcom-msm8226.armv7
+38c04debb450c87c2b3b13b52f7d0fe298f22a2567e2afb2e5eecdf4d0bd5be7850502b38a6c88b6ea538e8662f6fd184930fd4118fb56a48e85f6421e2f7772  config-postmarketos-qcom-msm8226.armv7
 8b40acb615e90a18eaf6373e12dc4ba55054951a78dee7e62276dba941e761b2a8920b925945dc7aabcf28122c224c7de2eae4bbd02d709d4e3da75142db03ae  0001-fx0-smbb-battery-voltage.patch
 ed49d01cea77104e642546f1fabf2ab331a1c3bc1247eb78e55d7e1ab18df4a3392a4e3ca45753cb1ff78102605793a0da44761b4dea8567a4a1e7f65b76c348  0002-camss-msm8226-guard-active-stream-sleep.patch
 48240ceb746f918e7f605404964d4941f175ad6081844fc298fb5fb3b2cb1c302836bef1f42f88a4af7a635564d9421059e1946a035afc52b9c21cbced7e5d13  0003-camss-gen1-ignore-wm-completion-while-stopping.patch
@@ -104,4 +107,7 @@ d1ef1184efc51ebdc164b6f9f18cbb53db793d964a8b6ed2dc676d6bae8de5a555a2e576d207ec06
 300249b87f656f1b5a4e021dc1b5341d6af11d1d70eb763476bc1c02f5ac2bcfa7a50261a182c210c823602d3d3c846cfc263694611b8ddd3ba9c0a131eadc6a  0006-camss-unwind-partially-started-pipeline.patch
 ccb6baf724a73379e4abf728d4ffccd0d7ebc45652528ccf2e2371de4824003138cc5811793bb9ad43ede3246eb5614a0b307cf29cc9e9910282407b9c1e1bc9  0007-camss-msm8226-preserve-rdi-capture-across-sleep.patch
 18d052240a60100ae99edb26aded7c6004d2483a0ee0c67147c384d8d47a3dff431846a7d5918e21109062831c470624971ecffbb3a0b2a34f8084d96eadacf5  0008-camss-msm8226-count-csid-vfe-references.patch
+9fadae52b552719789b9081e38c883f5e9f0bd5063ca27f4e966e99326f59405a36969e77081147881fdd5aca58c7b2b82265aba6335aeb97d36ec8b876ae40e  0009-smbb-refresh-battery-temperature-flags.patch
+d8d8c87e1b050d99213ee3f6cd17fb8cbda78c4bb350694f82c0d37000ef63552eb285b586b3e8bf16627b86211c2c5ab66013191b4f6468e102a7fc045fcbcd  0010-smbb-gate-stock-fx0-comparator-window.patch
+3fcd774f68593abd1b87610c60d8debe0e0c3ca214b5d06e7aa76b4d92dd76b421ec0032a81dd0a8c8adec2577fe2e84b2cd5190d0dac5baa8a2ebc23bd2ddc2  0011-smbb-track-managed-recharge-threshold.patch
 "
