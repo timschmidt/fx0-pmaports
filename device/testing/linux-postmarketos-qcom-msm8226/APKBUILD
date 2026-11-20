@@ -49,6 +49,7 @@ source="
 	0010-smbb-gate-stock-fx0-comparator-window.patch
 	0011-smbb-track-managed-recharge-threshold.patch
 	0012-smbb-estimate-capacity-and-report-full.patch
+	0013-smbb-notify-policy-samples-on-change.patch
 "
 builddir="$srcdir/fx0-linux-$_commit"
 
@@ -112,4 +113,5 @@ ccb6baf724a73379e4abf728d4ffccd0d7ebc45652528ccf2e2371de4824003138cc5811793bb9ad
 d8d8c87e1b050d99213ee3f6cd17fb8cbda78c4bb350694f82c0d37000ef63552eb285b586b3e8bf16627b86211c2c5ab66013191b4f6468e102a7fc045fcbcd  0010-smbb-gate-stock-fx0-comparator-window.patch
 3fcd774f68593abd1b87610c60d8debe0e0c3ca214b5d06e7aa76b4d92dd76b421ec0032a81dd0a8c8adec2577fe2e84b2cd5190d0dac5baa8a2ebc23bd2ddc2  0011-smbb-track-managed-recharge-threshold.patch
 2e36d539aea565364caaf140085a1ada03a6a3ff66152aecc7f0f22e359e0e00d9425777beb83aed7a96be5ef15414d126c24a44826e1333cfc3fef97a722694  0012-smbb-estimate-capacity-and-report-full.patch
+bb678b8dbf8fdc60ae7da536869b34196f6db4136048c0fcbb423ce712e21a5d9ce34bad105c01acf91d14f4ec260eabc40a08e9c302ca3c1f17ee6c889502ff  0013-smbb-notify-policy-samples-on-change.patch
 "
