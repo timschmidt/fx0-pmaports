@@ -1,0 +1,37 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Timothy Schmidt <timschmidt@gmail.com>
+Date: Fri, 20 Nov 2026 06:02:05 -0500
+Subject: [PATCH] power: supply: qcom_smbb: keep battery notifications out of
+ suspend
+
+With the managed policy active, suspending while the battery charges
+failed on the Fx0. The policy's suspend callback inhibits charging, the
+fast-charge interrupt then reports the change through
+power_supply_changed(), and the battery supply's wakeup source aborts
+the transition with "Some devices failed to suspend, or early wake event
+detected". A full battery was unaffected because its charger state does
+not change.
+
+Register the battery supply without a wakeup source when the charger is
+under software control. USB and DC input changes still hold theirs.
+---
+ drivers/power/supply/qcom_smbb.c | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+diff --git a/drivers/power/supply/qcom_smbb.c b/drivers/power/supply/qcom_smbb.c
+index 39ff47bde..3ffd14ef6 100644
+--- a/drivers/power/supply/qcom_smbb.c
++++ b/drivers/power/supply/qcom_smbb.c
+@@ -1548,6 +1548,12 @@ static int smbb_charger_probe(struct platform_device *pdev)
+ 
+ 	bat_cfg.drv_data = chg;
+ 	bat_cfg.fwnode = dev_fwnode(&pdev->dev);
++	/*
++	 * Under software control the policy changes the charger state while
++	 * the system suspends; a battery notification must not count as a
++	 * wakeup event then. USB and DC insertion keep their wakeup sources.
++	 */
++	bat_cfg.no_wakeup_source = chg->software_control;
+ 	chg->bat_psy = devm_power_supply_register(&pdev->dev,
+ 						  &chg->bat_desc,
+ 						  &bat_cfg);

@@ -18,7 +18,7 @@
   "reader_source_commit": "c7ce2bb8cf78e852eaea6024188c4cf21a4cb355",
   "experimental_CPU_system_sleep_promoted": false,
   "installed_source_parent": "0f2c00771fd1fa728c5775a4b8a69d440d31d527",
-  "candidate_source_commit": "9322d0b374d1e417642a9e93d724cc353ba2cea7",
+  "candidate_source_commit": "6027ecb30af738c7bb5c386eaae5802cab3821d5",
   "candidate_package_version": "6.18.64-r6",
   "packaged_camera_patches": [
     "0002-camss-msm8226-guard-active-stream-sleep.patch",
@@ -40,8 +40,9 @@
   "charging_source_equivalent_to_RAM_candidate": "8e5eacff1484771c0c96de28b018896a2cd7b738",
   "packaged_battery_patches": [
     "0012-smbb-estimate-capacity-and-report-full.patch",
-    "0013-smbb-notify-policy-samples-on-change.patch"
+    "0013-smbb-notify-policy-samples-on-change.patch",
+    "0014-smbb-keep-battery-notifications-out-of-suspend.patch"
   ],
-  "patched_archive_git_tree": "5aad92d989f4e2b4f9712c0762a6b1dc762151c1",
+  "patched_archive_git_tree": "b7a053606ad17add07fda82790270b8261740e87",
   "patched_archive_tree_equals_candidate_commit_tree": true
 }
