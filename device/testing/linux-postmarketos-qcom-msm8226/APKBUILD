@@ -3,7 +3,7 @@ maintainer="Newbyte <newbie13xd@gmail.com>"
 _flavor="postmarketos-qcom-msm8226"
 pkgname=linux-$_flavor
 pkgver=6.18.64
-pkgrel=5
+pkgrel=6
 pkgdesc="Mainline Kernel fork for APQ8026/MSM8226/MSM8926 devices"
 arch="armv7"
 _carch="arm"
@@ -48,6 +48,7 @@ source="
 	0009-smbb-refresh-battery-temperature-flags.patch
 	0010-smbb-gate-stock-fx0-comparator-window.patch
 	0011-smbb-track-managed-recharge-threshold.patch
+	0012-smbb-estimate-capacity-and-report-full.patch
 "
 builddir="$srcdir/fx0-linux-$_commit"
 
@@ -110,4 +111,5 @@ ccb6baf724a73379e4abf728d4ffccd0d7ebc45652528ccf2e2371de4824003138cc5811793bb9ad
 9fadae52b552719789b9081e38c883f5e9f0bd5063ca27f4e966e99326f59405a36969e77081147881fdd5aca58c7b2b82265aba6335aeb97d36ec8b876ae40e  0009-smbb-refresh-battery-temperature-flags.patch
 d8d8c87e1b050d99213ee3f6cd17fb8cbda78c4bb350694f82c0d37000ef63552eb285b586b3e8bf16627b86211c2c5ab66013191b4f6468e102a7fc045fcbcd  0010-smbb-gate-stock-fx0-comparator-window.patch
 3fcd774f68593abd1b87610c60d8debe0e0c3ca214b5d06e7aa76b4d92dd76b421ec0032a81dd0a8c8adec2577fe2e84b2cd5190d0dac5baa8a2ebc23bd2ddc2  0011-smbb-track-managed-recharge-threshold.patch
+a7b4259b5ae12b051b42f37ca048b3530407fdb9b617f7515d662982e92d20228afba661b8a25b3ca438424d10e03e22753d7c8fea246646e95198ef1b5cfe14  0012-smbb-estimate-capacity-and-report-full.patch
 "
