@@ -10,7 +10,7 @@
   },
   "all_91291_paths_verified": true,
   "source_verification": "reviewed Git source, all bytes/executable flags/literal symlink targets",
-  "configuration_SHA256": "9e4af5a38fa725b5969697317604d242e9fc832dea3a69f4fce9167e047c1d7d",
+  "configuration_SHA256": "44bad3cdd66f53ba2cb4ce61fcbf4f8c57b2684d18063c8bebbc747192eba612",
   "SOURCE_DATE_EPOCH": 1794873600,
   "existing_trusted_module_certificate_DER_SHA256": "de086e266ec1d82ea17ebbd51f10242e591df3cf74e958e269bdd91b9176d370",
   "prior_unsigned_fixture_certificate_DER_SHA256": "ecc82a4adee7f57cad6f095faf644f878c3076f734ba69e0d1799e366d68cf86",
@@ -19,7 +19,7 @@
   "experimental_CPU_system_sleep_promoted": false,
   "installed_source_parent": "0f2c00771fd1fa728c5775a4b8a69d440d31d527",
   "candidate_source_commit": "6027ecb30af738c7bb5c386eaae5802cab3821d5",
-  "candidate_package_version": "6.18.64-r6",
+  "candidate_package_version": "6.18.64-r7",
   "packaged_camera_patches": [
     "0002-camss-msm8226-guard-active-stream-sleep.patch",
     "0003-camss-gen1-ignore-wm-completion-while-stopping.patch",
@@ -36,7 +36,7 @@
     "0010-smbb-gate-stock-fx0-comparator-window.patch",
     "0011-smbb-track-managed-recharge-threshold.patch"
   ],
-  "configuration_change": "CONFIG_CHARGER_QCOM_SMBB_POLICY=y (managed policy child; charging still requires the paired lk2nd handoff)",
+  "configuration_change": "r6 plus CONFIG_PM_WAKELOCKS=y (Sxmo autosuspend needs /sys/power/wake_lock)",
   "charging_source_equivalent_to_RAM_candidate": "8e5eacff1484771c0c96de28b018896a2cd7b738",
   "packaged_battery_patches": [
     "0012-smbb-estimate-capacity-and-report-full.patch",
