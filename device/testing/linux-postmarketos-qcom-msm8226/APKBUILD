@@ -3,7 +3,7 @@ maintainer="Newbyte <newbie13xd@gmail.com>"
 _flavor="postmarketos-qcom-msm8226"
 pkgname=linux-$_flavor
 pkgver=6.18.64
-pkgrel=9
+pkgrel=10
 pkgdesc="Mainline Kernel fork for APQ8026/MSM8226/MSM8926 devices"
 arch="armv7"
 _carch="arm"
@@ -56,6 +56,7 @@ source="
 	0017-camss-msm8226-retain-every-raw-route-across-sleep.patch
 	0018-camss-raise-vfe-clock-for-added-route.patch
 	0019-camss-vfe-4-1-stop-write-master-overflow-irq-storm.patch
+	0020-dts-msm8926-lg-madai-enable-modem-and-rmtfs.patch
 "
 builddir="$srcdir/fx0-linux-$_commit"
 
@@ -126,4 +127,5 @@ da7a8a5e9f0ac6ba39dba079db4a84a0d1eab169e1f85696d2c8d83d1298d2e37bef80dd375c0c42
 b18d992ab61d50da65d0345ec4b63d92ded953423accc9fc5e767ee1ec2a86cd82d12371410f4237eed9b6f2777c274b79bee33634fdfbd669619a5e49312326  0017-camss-msm8226-retain-every-raw-route-across-sleep.patch
 5e3bf7de3ae65b3c4270e88a62bc7a67c65fcb3e887386170bca58e01a94d728dc07947f25517f114cdb1d15aa6592d31abe0eab3e61ce1523a7f9433f5a60b6  0018-camss-raise-vfe-clock-for-added-route.patch
 4595327a88776e4d89731afcc956caf7372f65d4eaf16379b7faa6619883c8e6b9dcbc35a17600a36799468862c8755973e8a456533d2c7c15f20abf35b7dc8b  0019-camss-vfe-4-1-stop-write-master-overflow-irq-storm.patch
+47835c1bc38ba4f4a5891c3e6f275d0e0925d50d2a59de7b343e6cea2d8e8da5e79667922c333bd9a89006c5938960a1d0a1fe4bce81d7905ed09f869fb0de0d  0020-dts-msm8926-lg-madai-enable-modem-and-rmtfs.patch
 "
