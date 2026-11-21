@@ -1,0 +1,33 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Timothy Schmidt <timschmidt@gmail.com>
+Date: Fri, 20 Nov 2026 21:24:21 -0500
+Subject: [PATCH 4/4] media: qcom: camss: raise the VFE clock for a route added
+ later
+
+The VFE clock rate is chosen when the first route powers the VFE up. A
+route added while the VFE is running only checks the current rate and
+fails the power up with -EBUSY when it is too slow. On MSM8226, starting
+the IMX132 (39.6 Mpixel/s) first sets a rate the IMX179 (259.2 Mpixel/s)
+cannot use, so the second camera can only start if it was started first.
+
+Raise the clock to the rate the routes now need instead of failing.
+
+Assisted-by: LLM [Claude Code]
+---
+ drivers/media/platform/qcom/camss/camss-vfe.c | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/drivers/media/platform/qcom/camss/camss-vfe.c b/drivers/media/platform/qcom/camss/camss-vfe.c
+index 84f471cca..2de281798 100644
+--- a/drivers/media/platform/qcom/camss/camss-vfe.c
++++ b/drivers/media/platform/qcom/camss/camss-vfe.c
+@@ -1109,6 +1109,9 @@ int vfe_get(struct vfe_device *vfe)
+ 		vfe->res->hw_ops->hw_version(vfe);
+ 	} else {
+ 		ret = vfe_check_clock_rates(vfe);
++		/* A route added to a running VFE may need a faster clock. */
++		if (ret == -EBUSY)
++			ret = vfe_set_clock_rates(vfe);
+ 		if (ret < 0)
+ 			goto error_pm_domain;
+ 	}

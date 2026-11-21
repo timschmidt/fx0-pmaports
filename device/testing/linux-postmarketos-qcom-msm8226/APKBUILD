@@ -3,7 +3,7 @@ maintainer="Newbyte <newbie13xd@gmail.com>"
 _flavor="postmarketos-qcom-msm8226"
 pkgname=linux-$_flavor
 pkgver=6.18.64
-pkgrel=7
+pkgrel=8
 pkgdesc="Mainline Kernel fork for APQ8026/MSM8226/MSM8926 devices"
 arch="armv7"
 _carch="arm"
@@ -51,6 +51,10 @@ source="
 	0012-smbb-estimate-capacity-and-report-full.patch
 	0013-smbb-notify-policy-samples-on-change.patch
 	0014-smbb-keep-battery-notifications-out-of-suspend.patch
+	0015-camss-csid-power-up-without-matching-vfe.patch
+	0016-camss-vfe-4-1-program-rdi-wm-buffer-size.patch
+	0017-camss-msm8226-retain-every-raw-route-across-sleep.patch
+	0018-camss-raise-vfe-clock-for-added-route.patch
 "
 builddir="$srcdir/fx0-linux-$_commit"
 
@@ -116,4 +120,8 @@ d8d8c87e1b050d99213ee3f6cd17fb8cbda78c4bb350694f82c0d37000ef63552eb285b586b3e8bf
 2e36d539aea565364caaf140085a1ada03a6a3ff66152aecc7f0f22e359e0e00d9425777beb83aed7a96be5ef15414d126c24a44826e1333cfc3fef97a722694  0012-smbb-estimate-capacity-and-report-full.patch
 bb678b8dbf8fdc60ae7da536869b34196f6db4136048c0fcbb423ce712e21a5d9ce34bad105c01acf91d14f4ec260eabc40a08e9c302ca3c1f17ee6c889502ff  0013-smbb-notify-policy-samples-on-change.patch
 c9f31da96148f6263c1713a21e1330f83f4513b623f463b30e8da31dc92dae41cf626533284d0eb3e9f83fb6f4d8a5bd72cdfb6afd1eb366d3af63d65cc0372e  0014-smbb-keep-battery-notifications-out-of-suspend.patch
+995b16b77b1116fc21b29a79df1d24d0e6fbf7f75a57ef5400dea0049ca95829e4ac3ed54b4707048cec640f3e9d705f869ff415bc6c1e184847b49290f079c7  0015-camss-csid-power-up-without-matching-vfe.patch
+da7a8a5e9f0ac6ba39dba079db4a84a0d1eab169e1f85696d2c8d83d1298d2e37bef80dd375c0c42f106e5a36e87ae5474e9bf0cc117a221e09a2e921ce32f37  0016-camss-vfe-4-1-program-rdi-wm-buffer-size.patch
+b18d992ab61d50da65d0345ec4b63d92ded953423accc9fc5e767ee1ec2a86cd82d12371410f4237eed9b6f2777c274b79bee33634fdfbd669619a5e49312326  0017-camss-msm8226-retain-every-raw-route-across-sleep.patch
+5e3bf7de3ae65b3c4270e88a62bc7a67c65fcb3e887386170bca58e01a94d728dc07947f25517f114cdb1d15aa6592d31abe0eab3e61ce1523a7f9433f5a60b6  0018-camss-raise-vfe-clock-for-added-route.patch
 "

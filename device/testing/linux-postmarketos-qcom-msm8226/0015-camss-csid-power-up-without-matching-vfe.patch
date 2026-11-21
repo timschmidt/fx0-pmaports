@@ -1,0 +1,50 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Allan Siriani <allan@fatecpompeia.edu.br>
+Date: Fri, 20 Nov 2026 21:24:03 -0500
+Subject: [PATCH 1/4] media: qcom: camss: do not fail CSID power up without a
+ matching VFE
+
+csid_set_power() powers up the VFE with the same index as the CSID before
+the CSID itself, through parent_dev_ops->get(). vfe_parent_dev_ops_get()
+returns -EINVAL when no VFE has that index. On ISPIF-based SoCs there are
+more CSIDs than VFEs: MSM8916 (and MSM8226) have two CSIDs and one VFE,
+and ISPIF routes either CSID to it. Streaming from CSID1 therefore fails
+with "Failed to power up pipeline: -22" even though CSID1 -> ISPIF ->
+VFE0 is valid. Return 0 when there is no VFE of the same index;
+vfe_parent_dev_ops_put() already ignores such indexes.
+
+[Fx0 import of linux-kernel 2026/11/11/2186, PATCH v3 4/4, posted with
+ Signed-off-by: Allan Siriani <allan@fatecpompeia.edu.br>]
+---
+ drivers/media/platform/qcom/camss/camss.c | 17 +++++++++--------
+ 1 file changed, 9 insertions(+), 8 deletions(-)
+
+diff --git a/drivers/media/platform/qcom/camss/camss.c b/drivers/media/platform/qcom/camss/camss.c
+index df8af4923..1804dd0fa 100644
+--- a/drivers/media/platform/qcom/camss/camss.c
++++ b/drivers/media/platform/qcom/camss/camss.c
+@@ -3645,15 +3645,16 @@ void camss_pm_domain_off(struct camss *camss, int id)
+ 
+ static int vfe_parent_dev_ops_get(struct camss *camss, int id)
+ {
+-	int ret = -EINVAL;
+-
+-	if (id < camss->res->vfe_num) {
+-		struct vfe_device *vfe = &camss->vfe[id];
+-
+-		ret = vfe_get(vfe);
+-	}
++	/*
++	 * On the ISPIF based SoCs any CSID can feed any VFE, and there may be
++	 * more CSIDs than VFEs (MSM8916: two CSIDs, one VFE). A CSID without a
++	 * VFE of the same index has no parent to power up: the VFE that ends
++	 * up in the pipeline is powered by its own subdev.
++	 */
++	if (id >= camss->res->vfe_num)
++		return 0;
+ 
+-	return ret;
++	return vfe_get(&camss->vfe[id]);
+ }
+ 
+ static int vfe_parent_dev_ops_put(struct camss *camss, int id)
