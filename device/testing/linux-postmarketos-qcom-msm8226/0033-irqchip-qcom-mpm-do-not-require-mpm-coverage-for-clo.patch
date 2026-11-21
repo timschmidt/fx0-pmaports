@@ -1,0 +1,35 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Timothy Schmidt <timschmidt@gmail.com>
+Date: Sat, 21 Nov 2026 04:16:46 -0500
+Subject: [PATCH 13/16] irqchip: qcom-mpm: do not require MPM coverage for
+ clock event timers
+
+The broadcast arch_mem_timer (GIC SPI 39, IRQF_TIMER) is shut down by
+tick and timekeeping suspend before MSM8226 system sleep, which wakes on
+device and RTC interrupts only. It was the one interrupt that made
+qcom_mpm_sleep_ready() refuse deep suspend.
+
+Assisted-by: LLM [Claude Code]
+---
+ drivers/irqchip/irq-qcom-mpm.c | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/drivers/irqchip/irq-qcom-mpm.c b/drivers/irqchip/irq-qcom-mpm.c
+index 623bc755b..37b02e5f2 100644
+--- a/drivers/irqchip/irq-qcom-mpm.c
++++ b/drivers/irqchip/irq-qcom-mpm.c
+@@ -494,7 +494,13 @@ static bool qcom_mpm_wake_covered(struct qcom_mpm_priv *priv)
+ 			if (data->domain == priv->domain->parent && data->hwirq < 32)
+ 				continue;
+ 			for (action = desc->action; action; action = action->next)
+-				if (action->flags & IRQF_NO_SUSPEND)
++				/*
++				 * Clock event timers (IRQF_TIMER implies NO_SUSPEND) are shut
++				 * down by tick/timekeeping suspend; system RAM sleep wakes on
++				 * device and RTC interrupts, not on a Linux tick.
++				 */
++				if ((action->flags & IRQF_NO_SUSPEND) &&
++				    !(action->flags & __IRQF_TIMER))
+ 					required = true;
+ 		}
+ 		if (required && !qcom_mpm_irq_covered(priv, data)) {

@@ -1,0 +1,525 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Timothy Schmidt <timschmidt@gmail.com>
+Date: Sat, 21 Nov 2026 04:16:45 -0500
+Subject: [PATCH 11/16] ARM: qcom: admit MSM8226 secondary restart only for a
+ live request
+
+(cherry picked from commit 3743831132900a49258df9378563a634ae62a87a)
+---
+ arch/arm/include/asm/smp.h               | 10 +++
+ arch/arm/kernel/smp.c                    | 40 +++++++----
+ arch/arm/mach-qcom/platsmp.c             | 86 ++++++++++++++++--------
+ drivers/cpuidle/cpuidle-qcom-spm.c       |  3 +-
+ drivers/soc/qcom/Makefile                |  1 -
+ drivers/soc/qcom/msm8226-hotplug-probe.h | 15 -----
+ drivers/soc/qcom/msm8226-pm.c            | 80 ++--------------------
+ drivers/soc/qcom/msm8226-warm-entry.S    | 39 -----------
+ include/soc/qcom/msm8226-pm.h            | 17 -----
+ 9 files changed, 100 insertions(+), 191 deletions(-)
+ delete mode 100644 drivers/soc/qcom/msm8226-hotplug-probe.h
+ delete mode 100644 drivers/soc/qcom/msm8226-warm-entry.S
+
+diff --git a/arch/arm/include/asm/smp.h b/arch/arm/include/asm/smp.h
+index 84aa6a663..4ed6044de 100644
+--- a/arch/arm/include/asm/smp.h
++++ b/arch/arm/include/asm/smp.h
+@@ -64,6 +64,10 @@ extern void secondary_startup_arm(void);
+ 
+ extern int __cpu_disable(void);
+ 
++#ifdef CONFIG_HOTPLUG_CPU
++void __noreturn arm_secondary_restart(void);
++#endif
++
+ static inline void __cpu_die(unsigned int cpu) { }
+ 
+ extern void arch_send_call_function_single_ipi(int cpu);
+@@ -92,6 +96,12 @@ struct smp_operations {
+ 	 * This also gives us the initial stack to use for this CPU.
+ 	 */
+ 	int  (*smp_boot_secondary)(unsigned int cpu, struct task_struct *idle);
++	/*
++	 * Cancel a timed-out secondary boot before ARM retires its boot data.
++	 * Return false if the secondary already accepted the request and
++	 * must finish startup.
++	 */
++	bool (*smp_cancel_secondary_boot)(unsigned int cpu);
+ #ifdef CONFIG_HOTPLUG_CPU
+ 	int  (*cpu_kill)(unsigned int cpu);
+ 	void (*cpu_die)(unsigned int cpu);
+diff --git a/arch/arm/kernel/smp.c b/arch/arm/kernel/smp.c
+index e30206365..8de9e629e 100644
+--- a/arch/arm/kernel/smp.c
++++ b/arch/arm/kernel/smp.c
+@@ -164,8 +164,16 @@ int __cpu_up(unsigned int cpu, struct task_struct *idle)
+ 		 * CPU was successfully started, wait for it
+ 		 * to come online or time out.
+ 		 */
+-		wait_for_completion_timeout(&cpu_running,
+-						 msecs_to_jiffies(1000));
++		if (!wait_for_completion_timeout(&cpu_running, msecs_to_jiffies(1000)) &&
++		    smp_ops.smp_cancel_secondary_boot &&
++		    !smp_ops.smp_cancel_secondary_boot(cpu)) {
++			/*
++			 * The secondary owns startup. A normal error return
++			 * could let it come online after hotplug unwinds.
++			 */
++			if (!wait_for_completion_timeout(&cpu_running, msecs_to_jiffies(5000)))
++				panic("CPU%u: secondary stalled after accepting startup\n", cpu);
++		}
+ 
+ 		if (!cpu_online(cpu)) {
+ 			pr_crit("CPU%u: failed to come online\n", cpu);
+@@ -315,6 +323,21 @@ void arch_cpuhp_cleanup_dead_cpu(unsigned int cpu)
+  * of the other hotplug-cpu capable cores, so presumably coming
+  * out of idle fixes this.
+  */
++void __noreturn arm_secondary_restart(void)
++{
++	/*
++	 * Resume the idle task with a fresh stack and run the secondary
++	 * initialization, including the CPU hotplug starting callbacks.
++	 */
++	__asm__("mov	sp, %0\n"
++	"	mov	fp, #0\n"
++	"	b	secondary_start_kernel"
++		:
++		: "r" (task_stack_page(current) + THREAD_SIZE - 8));
++
++	unreachable();
++}
++
+ void __noreturn arch_cpu_idle_dead(void)
+ {
+ 	unsigned int cpu = smp_processor_id();
+@@ -364,18 +387,7 @@ void __noreturn arch_cpu_idle_dead(void)
+ 	pr_warn("CPU%u: smp_ops.cpu_die() returned, trying to resuscitate\n",
+ 		cpu);
+ 
+-	/*
+-	 * Do not return to the idle loop - jump back to the secondary
+-	 * cpu initialisation.  There's some initialisation which needs
+-	 * to be repeated to undo the effects of taking the CPU offline.
+-	 */
+-	__asm__("mov	sp, %0\n"
+-	"	mov	fp, #0\n"
+-	"	b	secondary_start_kernel"
+-		:
+-		: "r" (task_stack_page(current) + THREAD_SIZE - 8));
+-
+-	unreachable();
++	arm_secondary_restart();
+ }
+ #endif /* CONFIG_HOTPLUG_CPU */
+ 
+diff --git a/arch/arm/mach-qcom/platsmp.c b/arch/arm/mach-qcom/platsmp.c
+index 63cbbfbd8..5e67d9fa5 100644
+--- a/arch/arm/mach-qcom/platsmp.c
++++ b/arch/arm/mach-qcom/platsmp.c
+@@ -6,6 +6,7 @@
+  *  Copyright (c) 2014 The Linux Foundation. All rights reserved.
+  */
+ 
++#include <linux/atomic.h>
+ #include <linux/init.h>
+ #include <linux/errno.h>
+ #include <linux/delay.h>
+@@ -379,57 +380,85 @@ static const struct smp_operations smp_msm8660_ops __initconst = {
+ CPU_METHOD_OF_DECLARE(qcom_smp, "qcom,gcc-msm8660", &smp_msm8660_ops);
+ 
+ #ifdef CONFIG_HOTPLUG_CPU
+-#define MSM8226_CPU3_WAKE_SGI	1
++#define MSM8226_WAKE_SGI	1
+ 
+-static DEFINE_PER_CPU(bool, msm8226_boot_requested);
++enum msm8226_restart_state {
++	MSM8226_RESTART_UNMANAGED,
++	MSM8226_RESTART_OFFLINE,
++	MSM8226_RESTART_REQUESTED,
++	MSM8226_RESTART_ACCEPTED,
++};
++
++static DEFINE_PER_CPU(atomic_t, msm8226_restart);
+ 
+ static int msm8226_cpu_disable(unsigned int cpu)
+ {
+-	if (qcom_msm8226_hotplug_probe_active() &&
+-	    cpu != QCOM_MSM8226_HOTPLUG_PROBE_CPU)
+-		return -EPERM;
+-	if (qcom_msm8226_pm_active() && !cpu)
++	bool managed = qcom_msm8226_pm_active();
++
++	if (managed && !cpu)
+ 		return -EPERM;
+-	/* Publish a fresh offline interval before waiting for a new boot request. */
+-	smp_store_release(&per_cpu(msm8226_boot_requested, cpu), false);
++	atomic_set(this_cpu_ptr(&msm8226_restart),
++		   managed ? MSM8226_RESTART_OFFLINE : MSM8226_RESTART_UNMANAGED);
+ 	return 0;
+ }
+ 
++static bool msm8226_cancel_secondary_boot(unsigned int cpu)
++{
++	atomic_t *restart = per_cpu_ptr(&msm8226_restart, cpu);
++
++	return atomic_cmpxchg(restart, MSM8226_RESTART_REQUESTED, MSM8226_RESTART_OFFLINE) !=
++	       MSM8226_RESTART_ACCEPTED;
++}
++
+ static void msm8226_cpu_die(unsigned int cpu)
+ {
+-	bool quiesced;
++	atomic_t *restart = this_cpu_ptr(&msm8226_restart);
++	bool collapse;
+ 	int ret;
+ 
+-	if (!qcom_msm8226_pm_active()) {
++	if (atomic_read(restart) == MSM8226_RESTART_UNMANAGED) {
+ 		wfi();
+ 		return;
+ 	}
+-	quiesced = !gic_cpu_quiesce_ppis(0);
+-	if (cpu == QCOM_MSM8226_HOTPLUG_PROBE_CPU &&
+-	    qcom_msm8226_hotplug_probe_active()) {
+-		/* The architecture's IPI teardown may have masked this SGI. */
+-		if (quiesced)
+-			quiesced = !gic_cpu_enable_wake_sgi(0, MSM8226_CPU3_WAKE_SGI);
+-		qcom_msm8226_hotplug_probe(quiesced);
+-	}
+-	/* Recheck after SGI cleanup so a concurrent boot request cannot be lost. */
+-	while (!smp_load_acquire(&per_cpu(msm8226_boot_requested, cpu))) {
+-		ret = quiesced ? qcom_msm8226_cpu_collapse(cpu) : -EIO;
+-		if (ret)
++	/* ARM's IPI teardown masked the firmware wake interrupt. */
++	ret = gic_cpu_quiesce_ppis(0);
++	if (!ret)
++		ret = gic_cpu_enable_wake_sgi(0, MSM8226_WAKE_SGI);
++	collapse = !ret;
++
++	for (;;) {
++		if (atomic_cmpxchg(restart, MSM8226_RESTART_REQUESTED, MSM8226_RESTART_ACCEPTED) ==
++		    MSM8226_RESTART_REQUESTED)
++			arm_secondary_restart();
++
++		ret = collapse ? qcom_msm8226_cpu_collapse(cpu) : -EIO;
++		if (ret && atomic_read(restart) != MSM8226_RESTART_REQUESTED)
+ 			wfi();
+ 	}
+ }
++
++static int msm8226_restart_secondary(unsigned int cpu, atomic_t *restart)
++{
++	int ret;
++
++	if (atomic_cmpxchg(restart, MSM8226_RESTART_OFFLINE, MSM8226_RESTART_REQUESTED) !=
++	    MSM8226_RESTART_OFFLINE)
++		return -EBUSY;
++
++	ret = gic_send_cpu_wakeup_sgi(cpu, MSM8226_WAKE_SGI);
++	if (ret && !msm8226_cancel_secondary_boot(cpu))
++		return 0;
++	return ret;
++}
+ #endif
+ 
+ static int msm8226_boot_secondary(unsigned int cpu, struct task_struct *idle)
+ {
+ #ifdef CONFIG_HOTPLUG_CPU
+-	/* Publish the request before the bring-up path sends its boot SGI. */
+-	smp_store_release(&per_cpu(msm8226_boot_requested, cpu), true);
+-	/* The downstream firmware wake path uses hardware SGI 1. */
+-	if (cpu == QCOM_MSM8226_HOTPLUG_PROBE_CPU &&
+-	    per_cpu(cold_boot_done, cpu) && qcom_msm8226_hotplug_probe_active())
+-		return gic_send_cpu_wakeup_sgi(cpu, MSM8226_CPU3_WAKE_SGI);
++	atomic_t *restart = per_cpu_ptr(&msm8226_restart, cpu);
++
++	if (atomic_read(restart) != MSM8226_RESTART_UNMANAGED)
++		return msm8226_restart_secondary(cpu, restart);
+ #endif
+ 	return cortex_a7_boot_secondary(cpu, idle);
+ }
+@@ -438,6 +467,7 @@ static const struct smp_operations qcom_smp_msm8226_ops __initconst = {
+ 	.smp_prepare_cpus = qcom_smp_prepare_cpus,
+ 	.smp_boot_secondary = msm8226_boot_secondary,
+ #ifdef CONFIG_HOTPLUG_CPU
++	.smp_cancel_secondary_boot = msm8226_cancel_secondary_boot,
+ 	.cpu_disable = msm8226_cpu_disable,
+ 	.cpu_die = msm8226_cpu_die,
+ 	.cpu_kill = qcom_msm8226_cpu_kill,
+diff --git a/drivers/cpuidle/cpuidle-qcom-spm.c b/drivers/cpuidle/cpuidle-qcom-spm.c
+index b5870684e..3dcc1f706 100644
+--- a/drivers/cpuidle/cpuidle-qcom-spm.c
++++ b/drivers/cpuidle/cpuidle-qcom-spm.c
+@@ -17,7 +17,6 @@
+ #include <linux/cpuidle.h>
+ #include <linux/cpu_pm.h>
+ #include <linux/firmware/qcom/qcom_scm.h>
+-#include <soc/qcom/msm8226-pm.h>
+ #include <soc/qcom/spm.h>
+ 
+ #include <asm/proc-fns.h>
+@@ -157,7 +156,7 @@ static int spm_cpuidle_drv_probe(struct platform_device *pdev)
+ 			return PTR_ERR(spm);
+ 	}
+ 
+-	ret = qcom_msm8226_set_warm_boot_addr(cpu_resume_arm);
++	ret = qcom_scm_set_warm_boot_addr(cpu_resume_arm);
+ 	if (ret)
+ 		return dev_err_probe(&pdev->dev, ret, "set warm boot addr failed");
+ 
+diff --git a/drivers/soc/qcom/Makefile b/drivers/soc/qcom/Makefile
+index ce31cd087..c675c60e3 100644
+--- a/drivers/soc/qcom/Makefile
++++ b/drivers/soc/qcom/Makefile
+@@ -31,7 +31,6 @@ obj-$(CONFIG_QCOM_SMSM)	+= smsm.o
+ obj-$(CONFIG_QCOM_SOCINFO)	+= socinfo.o
+ obj-$(CONFIG_QCOM_SPM)		+= spm.o
+ obj-$(CONFIG_QCOM_MSM8226_PM) += msm8226-pm.o
+-obj-$(CONFIG_QCOM_MSM8226_PM) += msm8226-warm-entry.o
+ obj-$(CONFIG_QCOM_STATS)	+= qcom_stats.o
+ obj-$(CONFIG_QCOM_WCNSS_CTRL) += wcnss_ctrl.o
+ obj-$(CONFIG_QCOM_APR) += apr.o
+diff --git a/drivers/soc/qcom/msm8226-hotplug-probe.h b/drivers/soc/qcom/msm8226-hotplug-probe.h
+deleted file mode 100644
+index 13917bcfd..000000000
+--- a/drivers/soc/qcom/msm8226-hotplug-probe.h
++++ /dev/null
+@@ -1,15 +0,0 @@
+-/* SPDX-License-Identifier: GPL-2.0-only */
+-#ifndef __MSM8226_HOTPLUG_PROBE_H__
+-#define __MSM8226_HOTPLUG_PROBE_H__
+-
+-#define MSM8226_PROBE_ARMED		1
+-#define MSM8226_PROBE_WARM_ENTRY	2
+-#define MSM8226_PROBE_SCM_RETURNED	3
+-#define MSM8226_PROBE_SPM_ERROR		4
+-#define MSM8226_PROBE_GIC_ERROR		5
+-
+-#ifndef __ASSEMBLY__
+-void msm8226_warm_probe_entry(void);
+-#endif
+-
+-#endif
+diff --git a/drivers/soc/qcom/msm8226-pm.c b/drivers/soc/qcom/msm8226-pm.c
+index 5a84fd646..13d3d0ed3 100644
+--- a/drivers/soc/qcom/msm8226-pm.c
++++ b/drivers/soc/qcom/msm8226-pm.c
+@@ -1,13 +1,11 @@
+ // SPDX-License-Identifier: GPL-2.0-only
+ /* MSM8226 system sleep: device preparation, transport handoff and CPU/L2 entry. */
+-#include <linux/cache.h>
+ #include <linux/cpu.h>
+ #include <linux/cpu_pm.h>
+ #include <linux/firmware/qcom/qcom_scm.h>
+ #include <linux/io.h>
+ #include <linux/iopoll.h>
+ #include <linux/module.h>
+-#include <linux/of.h>
+ #include <linux/of_address.h>
+ #include <linux/of_platform.h>
+ #include <linux/platform_device.h>
+@@ -26,8 +24,6 @@
+ #include <asm/smp_plat.h>
+ #include <asm/suspend.h>
+ 
+-#include "msm8226-hotplug-probe.h"
+-
+ #define MSM8226_CPUS 4
+ #define MSM8226_SLEEP_STATUS 0x8
+ #define MSM8226_CPU_COLLAPSED BIT(19)
+@@ -54,81 +50,14 @@ static struct msm8226_pm *msm8226_pm;
+ /* SPM is built in, has no unregister path and suppresses manual unbinding. */
+ static struct spm_driver_data *msm8226_cpu_spm[MSM8226_CPUS];
+ 
+-static bool hotplug_probe;
+-module_param(hotplug_probe, bool, 0400);
+-MODULE_PARM_DESC(hotplug_probe, "Park CPU3 at the firmware warm vector until reboot");
+-
+-/* Firmware enters with the MMU off and writes the probe word directly. */
+-u32 msm8226_warm_probe_state __cacheline_aligned;
+-
+-static int msm8226_get_probe_state(char *buf, const struct kernel_param *param)
+-{
+-	sync_cache_r(&msm8226_warm_probe_state);
+-	return sprintf(buf, "%u\n", READ_ONCE(msm8226_warm_probe_state));
+-}
+-
+-static const struct kernel_param_ops msm8226_probe_state_ops = {
+-	.get = msm8226_get_probe_state,
+-};
+-module_param_cb(hotplug_probe_state, &msm8226_probe_state_ops, NULL, 0400);
+-
+-int qcom_msm8226_set_warm_boot_addr(void *resume)
+-{
+-	struct device_node *node;
+-
+-	/* Both the idle driver and the coordinator can register this vector. */
+-	if (hotplug_probe) {
+-		node = of_find_compatible_node(NULL, NULL, "qcom,msm8226-system-pm");
+-		if (of_device_is_available(node))
+-			resume = msm8226_warm_probe_entry;
+-		of_node_put(node);
+-	}
+-
+-	return qcom_scm_set_warm_boot_addr(resume);
+-}
+-
+ bool qcom_msm8226_pm_active(void)
+ {
+ 	return !!READ_ONCE(msm8226_pm);
+ }
+ 
+-bool qcom_msm8226_hotplug_probe_active(void)
+-{
+-	return hotplug_probe && qcom_msm8226_pm_active();
+-}
+-
+-static void msm8226_publish_probe_state(u32 state)
+-{
+-	WRITE_ONCE(msm8226_warm_probe_state, state);
+-	sync_cache_w(&msm8226_warm_probe_state);
+-	dsb(sy);
+-}
+-
+-void __noreturn qcom_msm8226_hotplug_probe(bool quiesced)
+-{
+-	struct spm_driver_data *spm =
+-		READ_ONCE(msm8226_cpu_spm[QCOM_MSM8226_HOTPLUG_PROBE_CPU]);
+-	u32 failure = MSM8226_PROBE_GIC_ERROR;
+-
+-	if (quiesced) {
+-		failure = MSM8226_PROBE_SPM_ERROR;
+-		if (!spm_msm8226_cpu_ready(spm) &&
+-		    !spm_set_low_power_mode(spm, PM_SLEEP_MODE_SPC)) {
+-			msm8226_publish_probe_state(MSM8226_PROBE_ARMED);
+-			flush_cache_louis();
+-			qcom_scm_cpu_hotplug_power_down();
+-			spm_set_low_power_mode(spm, PM_SLEEP_MODE_STBY);
+-			failure = MSM8226_PROBE_SCM_RETURNED;
+-		}
+-	}
+-	msm8226_publish_probe_state(failure);
+-	for (;;)
+-		asm volatile("wfi" ::: "memory");
+-}
+-
+ static int msm8226_core_finisher(unsigned long arg)
+ {
+-	qcom_scm_cpu_power_down(QCOM_SCM_CPU_PWR_DOWN_L2_ON);
++	qcom_scm_cpu_hotplug_power_down();
+ 	return -EAGAIN;
+ }
+ 
+@@ -151,6 +80,8 @@ int qcom_msm8226_cpu_collapse(unsigned int cpu)
+ 		ret = cpu_suspend(0, msm8226_core_finisher);
+ 	restore = spm_set_low_power_mode(spm, PM_SLEEP_MODE_STBY);
+ 	cpu_pm_exit();
++	if (!ret && !restore)
++		pr_info("CPU%u: MSM8226 hotplug suspend context restored\n", cpu);
+ 	return ret ?: restore;
+ }
+ 
+@@ -474,7 +405,7 @@ static int msm8226_pm_probe(struct platform_device *pdev)
+ 	ret = qcom_cpr_msm8926_suspend_attach(&pm->cpr->dev, dev);
+ 	if (ret)
+ 		goto unregister_rpm;
+-	ret = qcom_msm8226_set_warm_boot_addr(cpu_resume_arm);
++	ret = qcom_scm_set_warm_boot_addr(cpu_resume_arm);
+ 	if (ret)
+ 		goto detach_cpr;
+ 	cpus_write_lock();
+@@ -488,8 +419,7 @@ static int msm8226_pm_probe(struct platform_device *pdev)
+ 	platform_set_drvdata(pdev, pm);
+ 	WRITE_ONCE(msm8226_pm, pm);
+ 	cpus_write_unlock();
+-	if (!hotplug_probe)
+-		schedule_work(&pm->install_work);
++	schedule_work(&pm->install_work);
+ 	return 0;
+ 
+ detach_cpr:
+diff --git a/drivers/soc/qcom/msm8226-warm-entry.S b/drivers/soc/qcom/msm8226-warm-entry.S
+deleted file mode 100644
+index 91f75385e..000000000
+--- a/drivers/soc/qcom/msm8226-warm-entry.S
++++ /dev/null
+@@ -1,39 +0,0 @@
+-/* SPDX-License-Identifier: GPL-2.0-only */
+-#include <linux/linkage.h>
+-#include <soc/qcom/msm8226-pm.h>
+-#include <asm/assembler.h>
+-
+-#include "msm8226-hotplug-probe.h"
+-
+-	.arm
+-	.text
+-ENTRY(msm8226_warm_probe_entry)
+-	ARM_BE8(setend be)
+-	mrc	p15, 0, r0, c0, c0, 5	@ MPIDR
+-	ubfx	r1, r0, #0, #24
+-	cmp	r1, #QCOM_MSM8226_HOTPLUG_PROBE_CPU	@ Cluster 0
+-	bne	cpu_resume_arm
+-
+-	/* The MMU is off. Resolve the probe word relative to this entry. */
+-	adr	r1, .Lprobe_offset
+-	ldr	r2, [r1]
+-	add	r1, r1, r2
+-	ldr	r2, [r1]
+-	cmp	r2, #0
+-	beq	cpu_resume_arm
+-
+-	/*
+-	 * CPU3 has no saved suspend context or valid late startup data.
+-	 * Leave it parked after recording that firmware reached this vector.
+-	 */
+-	cpsid	aif
+-	mov	r2, #MSM8226_PROBE_WARM_ENTRY
+-	str	r2, [r1]
+-	dsb	sy
+-1:	wfi
+-	b	1b
+-ENDPROC(msm8226_warm_probe_entry)
+-
+-	.align	2
+-.Lprobe_offset:
+-	.word	msm8226_warm_probe_state - .Lprobe_offset
+diff --git a/include/soc/qcom/msm8226-pm.h b/include/soc/qcom/msm8226-pm.h
+index e26c4921c..264d5f250 100644
+--- a/include/soc/qcom/msm8226-pm.h
++++ b/include/soc/qcom/msm8226-pm.h
+@@ -2,35 +2,18 @@
+ #ifndef __SOC_QCOM_MSM8226_PM_H__
+ #define __SOC_QCOM_MSM8226_PM_H__
+ 
+-#define QCOM_MSM8226_HOTPLUG_PROBE_CPU	3
+-
+-#ifndef __ASSEMBLY__
+ #include <linux/kconfig.h>
+ #include <linux/types.h>
+ #include <linux/errno.h>
+-#include <linux/firmware/qcom/qcom_scm.h>
+ 
+ #if IS_ENABLED(CONFIG_QCOM_MSM8226_PM)
+ bool qcom_msm8226_pm_active(void);
+ int qcom_msm8226_cpu_collapse(unsigned int cpu);
+ int qcom_msm8226_cpu_kill(unsigned int cpu);
+-int qcom_msm8226_set_warm_boot_addr(void *resume);
+-bool qcom_msm8226_hotplug_probe_active(void);
+-void __noreturn qcom_msm8226_hotplug_probe(bool quiesced);
+ #else
+ static inline bool qcom_msm8226_pm_active(void) { return false; }
+ static inline int qcom_msm8226_cpu_collapse(unsigned int cpu) { return -ENODEV; }
+ static inline int qcom_msm8226_cpu_kill(unsigned int cpu) { return 1; }
+-static inline int qcom_msm8226_set_warm_boot_addr(void *resume)
+-{
+-	return qcom_scm_set_warm_boot_addr(resume);
+-}
+-static inline bool qcom_msm8226_hotplug_probe_active(void) { return false; }
+-static inline void __noreturn qcom_msm8226_hotplug_probe(bool quiesced)
+-{
+-	unreachable();
+-}
+ #endif
+ 
+-#endif /* __ASSEMBLY__ */
+ #endif

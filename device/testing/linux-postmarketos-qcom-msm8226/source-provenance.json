@@ -16,10 +16,10 @@
   "prior_unsigned_fixture_certificate_DER_SHA256": "ecc82a4adee7f57cad6f095faf644f878c3076f734ba69e0d1799e366d68cf86",
   "normal_signed_builds_not_yet_qualified": true,
   "reader_source_commit": "c7ce2bb8cf78e852eaea6024188c4cf21a4cb355",
-  "experimental_CPU_system_sleep_promoted": false,
-  "installed_source_parent": "6c5b6e7849fd52122123d1b72c0076f145209d5a",
-  "candidate_source_commit": "d1dee45e3a32eecb8af64e5a3be6c831b2a0251e",
-  "candidate_package_version": "6.18.64-r10",
+  "experimental_CPU_system_sleep_promoted": true,
+  "installed_source_parent": "d1dee45e3a32eecb8af64e5a3be6c831b2a0251e",
+  "candidate_source_commit": "f3e4afc9bf27e56e9e58343f04aaf9f0f882fe54",
+  "candidate_package_version": "6.18.64-r11",
   "packaged_camera_patches": [
     "0002-camss-msm8226-guard-active-stream-sleep.patch",
     "0003-camss-gen1-ignore-wm-completion-while-stopping.patch",
@@ -36,7 +36,7 @@
     "0010-smbb-gate-stock-fx0-comparator-window.patch",
     "0011-smbb-track-managed-recharge-threshold.patch"
   ],
-  "configuration_change": "none from r9",
+  "configuration_change": "r10 plus QCOM_CPR, QCOM_CPR_MSM8926, QCOM_MPM, QCOM_MSM8226_PM, ARM_QCOM_CPUFREQ_NVMEM",
   "charging_source_equivalent_to_RAM_candidate": "8e5eacff1484771c0c96de28b018896a2cd7b738",
   "packaged_battery_patches": [
     "0012-smbb-estimate-capacity-and-report-full.patch",
@@ -56,5 +56,24 @@
   "packaged_overflow_guard_patch": "0019-camss-vfe-4-1-stop-write-master-overflow-irq-storm.patch",
   "overflow_guard_source": "timschmidt/fx0-linux development/fx0-camss-vfe-overflow-guard-01",
   "packaged_modem_dt_patch": "0020-dts-msm8926-lg-madai-enable-modem-and-rmtfs.patch",
-  "modem_dt_source": "timschmidt/fx0-linux diagnostic/fx0-modem-mss-enable-01; RAM-trial evidence evidence/2026-11-21-fx0-modem-first-boot.json"
+  "modem_dt_source": "timschmidt/fx0-linux diagnostic/fx0-modem-mss-enable-01; RAM-trial evidence evidence/2026-11-21-fx0-modem-first-boot.json",
+  "packaged_deep_suspend_patches": [
+    "0021-diagnostic-bound-madai-mx-startup-to-the-observed-ce.patch",
+    "0022-pmdomain-qcom-measure-msm8926-cpr-busy-at-suspend.patch",
+    "0023-pmdomain-qcom-sample-cpr-busy-across-suspend-quiesce.patch",
+    "0024-pmdomain-qcom-test-cpr-quiesce-without-nack-after-an.patch",
+    "0025-pmdomain-qcom-test-cpr-quiesce-without-ack-on-an-idl.patch",
+    "0026-pmdomain-qcom-use-a-valid-apc-selector-for-msm8926-s.patch",
+    "0027-pmdomain-qcom-reuse-the-apcs-regmap-for-msm8926-cpr.patch",
+    "0028-arm-qcom-probe-msm8226-hotplug-warm-entry-on-cpu3.patch",
+    "0029-arm-qcom-probe-cpu3-warm-wake-with-downstream-sgi-1.patch",
+    "0030-arm-qcom-verify-banked-wake-sgi-before-msm8226-probe.patch",
+    "0031-arm-qcom-admit-msm8226-secondary-restart-only-for-a-.patch",
+    "0032-irqchip-qcom-mpm-name-interrupts-that-block-msm8226-.patch",
+    "0033-irqchip-qcom-mpm-do-not-require-mpm-coverage-for-clo.patch",
+    "0034-arm-qcom-power-up-msm8226-secondaries-through-acc-af.patch",
+    "0035-arm-dts-qcom-msm8926-lg-madai-use-the-active-only-xo.patch",
+    "0036-arm-dts-qcom-msm8926-lg-madai-promote-cpr-and-system.patch"
+  ],
+  "deep_suspend_source": "timschmidt/fx0-linux development/fx0-msm8226-deep-suspend-01; RAM-trial evidence evidence/2026-11-21-msm8226-first-deep-suspend.json and -first-xo-shutdown.json"
 }

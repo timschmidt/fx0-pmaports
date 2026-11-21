@@ -1,0 +1,86 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Timothy Schmidt <timschmidt@gmail.com>
+Date: Sat, 21 Nov 2026 04:16:45 -0500
+Subject: [PATCH 06/16] pmdomain: qcom: Use a valid APC selector for MSM8926
+ suspend cover
+
+The MX ceiling is rounded to the RPM rail grid. Retain the checked APC ceiling separately, then require provider support for it before taking the suspend clock lease. Keep MX coverage in place before programming APC or raising the clock.
+
+(cherry picked from commit 96f8b4dda84fbd3d72808cfeaff011efeb14b0eb)
+---
+ drivers/pmdomain/qcom/cpr-msm8926-suspend.h | 10 ++++++++--
+ drivers/pmdomain/qcom/cpr-msm8926-voltage.h |  4 +++-
+ drivers/pmdomain/qcom/cpr.c                 |  1 +
+ 3 files changed, 12 insertions(+), 3 deletions(-)
+
+diff --git a/drivers/pmdomain/qcom/cpr-msm8926-suspend.h b/drivers/pmdomain/qcom/cpr-msm8926-suspend.h
+index 35cee34f3..1b5cead8b 100644
+--- a/drivers/pmdomain/qcom/cpr-msm8926-suspend.h
++++ b/drivers/pmdomain/qcom/cpr-msm8926-suspend.h
+@@ -21,6 +21,7 @@ struct cpr_msm8926_suspend {
+ 	struct clk *aux;
+ 	struct clk *pll;
+ 	struct regmap *apcs;
++	int cover_apc_uv;
+ 	unsigned long saved_rate;
+ 	u32 saved_cfg;
+ 	int saved_apc_uv;
+@@ -98,7 +99,7 @@ static inline int cpr_suspend_cover(struct cpr_msm8926_suspend *sleep)
+ 	ret = cpr_suspend_sync(sleep->sleep_mx);
+ 	if (ret)
+ 		return ret;
+-	ret = regulator_set_voltage(rails->apc, rails->mx_max_uV, rails->mx_max_uV);
++	ret = regulator_set_voltage(rails->apc, sleep->cover_apc_uv, sleep->cover_apc_uv);
+ 	if (ret)
+ 		return ret;
+ 	return cpr_suspend_sync(rails->apc);
+@@ -155,9 +156,14 @@ static inline int cpr_suspend_prepare(struct cpr_msm8926_suspend *sleep,
+ 	    !rails->mx_enabled || !sleep->sleep_mx || !sleep->clock ||
+ 	    !sleep->aux || !sleep->pll || !sleep->apcs ||
+ 	    rails->mx_min_uV <= 0 || rails->mx_min_uV > rails->mx_max_uV ||
+-	    min_apc_uV <= 0 || max_apc_uV < min_apc_uV || max_apc_uV > rails->mx_max_uV ||
++	    min_apc_uV <= 0 || max_apc_uV < min_apc_uV ||
++	    sleep->cover_apc_uv < max_apc_uV || sleep->cover_apc_uv > rails->mx_max_uV ||
+ 	    rate < CPR_SUSPEND_SAFE_RATE)
+ 		return -EINVAL;
++	ret = regulator_is_supported_voltage(rails->apc, sleep->cover_apc_uv,
++					     sleep->cover_apc_uv);
++	if (ret <= 0)
++		return ret ?: -ERANGE;
+ 	ret = clk_rate_exclusive_get(sleep->clock);
+ 	if (ret)
+ 		return ret;
+diff --git a/drivers/pmdomain/qcom/cpr-msm8926-voltage.h b/drivers/pmdomain/qcom/cpr-msm8926-voltage.h
+index 6bd5cc929..2db6aace4 100644
+--- a/drivers/pmdomain/qcom/cpr-msm8926-voltage.h
++++ b/drivers/pmdomain/qcom/cpr-msm8926-voltage.h
+@@ -12,6 +12,7 @@ struct cpr_msm8926_voltage_plan {
+ 	int ceiling_uV[3];
+ 	int initial_uV[3];
+ 	int mx_min_uV[3];
++	int apc_ceiling_uV;
+ 	int bootstrap_mx_uV;
+ };
+ 
+@@ -104,7 +105,8 @@ cpr_msm8926_plan_voltages(const struct cpr_msm8926_calibration *calibration,
+ 			return ret;
+ 		bootstrap_apc_uV = max(bootstrap_apc_uV, result.ceiling_uV[i]);
+ 	}
+-	result.bootstrap_mx_uV = DIV_ROUND_UP(bootstrap_apc_uV, 12500) * 12500;
++	result.apc_ceiling_uV = bootstrap_apc_uV;
++	result.bootstrap_mx_uV = DIV_ROUND_UP(result.apc_ceiling_uV, 12500) * 12500;
+ 	if (result.bootstrap_mx_uV > mx_max_uV)
+ 		return -ERANGE;
+ 	ret = cpr_msm8926_check_voltage(mx, mx_count, result.bootstrap_mx_uV);
+diff --git a/drivers/pmdomain/qcom/cpr.c b/drivers/pmdomain/qcom/cpr.c
+index 0951b1ea0..b7bdfc695 100644
+--- a/drivers/pmdomain/qcom/cpr.c
++++ b/drivers/pmdomain/qcom/cpr.c
+@@ -2294,6 +2294,7 @@ int qcom_cpr_msm8926_suspend_attach(struct device *dev, struct device *owner)
+ 		.aux = data->aux_clk,
+ 		.pll = data->pll_clk,
+ 		.apcs = data->apcs,
++		.cover_apc_uv = data->plan.apc_ceiling_uV,
+ 	};
+ 	data->suspend_owner = owner;
+ 	return 0;

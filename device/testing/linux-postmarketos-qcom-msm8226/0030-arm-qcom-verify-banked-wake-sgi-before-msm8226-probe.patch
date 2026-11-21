@@ -1,0 +1,97 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Timothy Schmidt <timschmidt@gmail.com>
+Date: Sat, 21 Nov 2026 04:16:45 -0500
+Subject: [PATCH 10/16] ARM: qcom: verify banked wake SGI before MSM8226 probe
+ collapse
+
+(cherry picked from commit 4b44caace62baa968b0c43ea84e4225bfabe499f)
+---
+ arch/arm/mach-qcom/platsmp.c    | 10 ++++++++--
+ drivers/irqchip/irq-gic.c       | 25 +++++++++++++++++++++++++
+ include/linux/irqchip/arm-gic.h |  1 +
+ 3 files changed, 34 insertions(+), 2 deletions(-)
+
+diff --git a/arch/arm/mach-qcom/platsmp.c b/arch/arm/mach-qcom/platsmp.c
+index 3c237bcbb..63cbbfbd8 100644
+--- a/arch/arm/mach-qcom/platsmp.c
++++ b/arch/arm/mach-qcom/platsmp.c
+@@ -379,6 +379,8 @@ static const struct smp_operations smp_msm8660_ops __initconst = {
+ CPU_METHOD_OF_DECLARE(qcom_smp, "qcom,gcc-msm8660", &smp_msm8660_ops);
+ 
+ #ifdef CONFIG_HOTPLUG_CPU
++#define MSM8226_CPU3_WAKE_SGI	1
++
+ static DEFINE_PER_CPU(bool, msm8226_boot_requested);
+ 
+ static int msm8226_cpu_disable(unsigned int cpu)
+@@ -404,8 +406,12 @@ static void msm8226_cpu_die(unsigned int cpu)
+ 	}
+ 	quiesced = !gic_cpu_quiesce_ppis(0);
+ 	if (cpu == QCOM_MSM8226_HOTPLUG_PROBE_CPU &&
+-	    qcom_msm8226_hotplug_probe_active())
++	    qcom_msm8226_hotplug_probe_active()) {
++		/* The architecture's IPI teardown may have masked this SGI. */
++		if (quiesced)
++			quiesced = !gic_cpu_enable_wake_sgi(0, MSM8226_CPU3_WAKE_SGI);
+ 		qcom_msm8226_hotplug_probe(quiesced);
++	}
+ 	/* Recheck after SGI cleanup so a concurrent boot request cannot be lost. */
+ 	while (!smp_load_acquire(&per_cpu(msm8226_boot_requested, cpu))) {
+ 		ret = quiesced ? qcom_msm8226_cpu_collapse(cpu) : -EIO;
+@@ -423,7 +429,7 @@ static int msm8226_boot_secondary(unsigned int cpu, struct task_struct *idle)
+ 	/* The downstream firmware wake path uses hardware SGI 1. */
+ 	if (cpu == QCOM_MSM8226_HOTPLUG_PROBE_CPU &&
+ 	    per_cpu(cold_boot_done, cpu) && qcom_msm8226_hotplug_probe_active())
+-		return gic_send_cpu_wakeup_sgi(cpu, 1);
++		return gic_send_cpu_wakeup_sgi(cpu, MSM8226_CPU3_WAKE_SGI);
+ #endif
+ 	return cortex_a7_boot_secondary(cpu, idle);
+ }
+diff --git a/drivers/irqchip/irq-gic.c b/drivers/irqchip/irq-gic.c
+index ae8c07026..e0bf31e20 100644
+--- a/drivers/irqchip/irq-gic.c
++++ b/drivers/irqchip/irq-gic.c
+@@ -545,6 +545,31 @@ int gic_cpu_quiesce_ppis(unsigned int gic_nr)
+ 	return 0;
+ }
+ 
++int gic_cpu_enable_wake_sgi(unsigned int gic_nr, unsigned int sgi)
++{
++	struct gic_chip_data *gic;
++	void __iomem *dist, *cpu_if;
++	u32 before, after;
++
++	if (gic_nr >= CONFIG_ARM_GIC_MAX_NR || sgi > 7 || !irqs_disabled())
++		return -EINVAL;
++	gic = &gic_data[gic_nr];
++	dist = gic_data_dist_base(gic);
++	cpu_if = gic_data_cpu_base(gic);
++	if (!dist || !cpu_if)
++		return -ENODEV;
++
++	before = readl_relaxed(dist + GIC_DIST_ENABLE_SET);
++	if (!(before & BIT(sgi)))
++		writel_relaxed(BIT(sgi), dist + GIC_DIST_ENABLE_SET);
++	after = readl(dist + GIC_DIST_ENABLE_SET);
++	pr_info("GIC: CPU%u wake SGI%u enable %d->%d ctrl=%#x pmr=%#x\n",
++		raw_smp_processor_id(), sgi, !!(before & BIT(sgi)), !!(after & BIT(sgi)),
++		readl_relaxed(cpu_if + GIC_CPU_CTRL), readl_relaxed(cpu_if + GIC_CPU_PRIMASK));
++
++	return after & BIT(sgi) ? 0 : -EIO;
++}
++
+ int gic_cpu_if_down(unsigned int gic_nr)
+ {
+ 	void __iomem *cpu_base;
+diff --git a/include/linux/irqchip/arm-gic.h b/include/linux/irqchip/arm-gic.h
+index 009184ac9..43f52cc2e 100644
+--- a/include/linux/irqchip/arm-gic.h
++++ b/include/linux/irqchip/arm-gic.h
+@@ -135,6 +135,7 @@ struct gic_chip_data;
+ void gic_cascade_irq(unsigned int gic_nr, unsigned int irq);
+ int gic_cpu_if_down(unsigned int gic_nr);
+ int gic_cpu_quiesce_ppis(unsigned int gic_nr);
++int gic_cpu_enable_wake_sgi(unsigned int gic_nr, unsigned int sgi);
+ int gic_send_cpu_wakeup_sgi(unsigned int cpu, unsigned int sgi);
+ void gic_cpu_save(struct gic_chip_data *gic);
+ void gic_cpu_restore(struct gic_chip_data *gic);

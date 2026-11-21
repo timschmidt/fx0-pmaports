@@ -1,0 +1,76 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Timothy Schmidt <timschmidt@gmail.com>
+Date: Sat, 21 Nov 2026 04:16:46 -0500
+Subject: [PATCH 16/16] ARM: dts: qcom: msm8926-lg-madai: promote CPR and
+ system sleep to the Madai DT
+
+Fold the CPR (CPU OPP/voltage) and system-sleep (MPM wake routing,
+MSM8226 coordinator) descriptions into the main Madai device tree, which
+the installed boot uses, and drop the separate -cpr and -suspend
+variants. Both were qualified in RAM trials of full deep suspend.
+
+Assisted-by: LLM [Claude Code]
+---
+ arch/arm/boot/dts/qcom/Makefile                               | 2 --
+ ...sm8926-lg-madai-cpr.dts => qcom-msm8926-lg-madai-cpr.dtsi} | 1 -
+ ...g-madai-suspend.dts => qcom-msm8926-lg-madai-suspend.dtsi} | 3 +--
+ arch/arm/boot/dts/qcom/qcom-msm8926-lg-madai.dts              | 4 ++++
+ 4 files changed, 5 insertions(+), 5 deletions(-)
+ rename arch/arm/boot/dts/qcom/{qcom-msm8926-lg-madai-cpr.dts => qcom-msm8926-lg-madai-cpr.dtsi} (99%)
+ rename arch/arm/boot/dts/qcom/{qcom-msm8926-lg-madai-suspend.dts => qcom-msm8926-lg-madai-suspend.dtsi} (89%)
+
+diff --git a/arch/arm/boot/dts/qcom/Makefile b/arch/arm/boot/dts/qcom/Makefile
+index 16cdd122d..d04ef20b2 100644
+--- a/arch/arm/boot/dts/qcom/Makefile
++++ b/arch/arm/boot/dts/qcom/Makefile
+@@ -38,8 +38,6 @@ dtb-$(CONFIG_ARCH_QCOM) += \
+ 	qcom-msm8916-samsung-serranove.dtb \
+ 	qcom-msm8926-htc-memul.dtb \
+ 	qcom-msm8926-lg-madai.dtb \
+-	qcom-msm8926-lg-madai-cpr.dtb \
+-	qcom-msm8926-lg-madai-suspend.dtb \
+ 	qcom-msm8926-microsoft-superman-lte.dtb \
+ 	qcom-msm8926-microsoft-tesla.dtb \
+ 	qcom-msm8926-motorola-peregrine.dtb \
+diff --git a/arch/arm/boot/dts/qcom/qcom-msm8926-lg-madai-cpr.dts b/arch/arm/boot/dts/qcom/qcom-msm8926-lg-madai-cpr.dtsi
+similarity index 99%
+rename from arch/arm/boot/dts/qcom/qcom-msm8926-lg-madai-cpr.dts
+rename to arch/arm/boot/dts/qcom/qcom-msm8926-lg-madai-cpr.dtsi
+index e91112c55..63107c64d 100644
+--- a/arch/arm/boot/dts/qcom/qcom-msm8926-lg-madai-cpr.dts
++++ b/arch/arm/boot/dts/qcom/qcom-msm8926-lg-madai-cpr.dtsi
+@@ -4,7 +4,6 @@
+  * Inherits the integrated board target; select this DTB explicitly for
+  * CPU/CPR qualification. Hardware acceptance remains a separate requirement.
+  */
+-#include "qcom-msm8926-lg-madai.dts"
+ #include <dt-bindings/opp/qcom,msm8926.h>
+ 
+ / {
+diff --git a/arch/arm/boot/dts/qcom/qcom-msm8926-lg-madai-suspend.dts b/arch/arm/boot/dts/qcom/qcom-msm8926-lg-madai-suspend.dtsi
+similarity index 89%
+rename from arch/arm/boot/dts/qcom/qcom-msm8926-lg-madai-suspend.dts
+rename to arch/arm/boot/dts/qcom/qcom-msm8926-lg-madai-suspend.dtsi
+index 9821624c0..05164d76e 100644
+--- a/arch/arm/boot/dts/qcom/qcom-msm8926-lg-madai-suspend.dts
++++ b/arch/arm/boot/dts/qcom/qcom-msm8926-lg-madai-suspend.dtsi
+@@ -1,6 +1,5 @@
+ // SPDX-License-Identifier: BSD-3-Clause
+-/* Experimental full-system suspend target; physical acceptance is separate. */
+-#include "qcom-msm8926-lg-madai-cpr.dts"
++/* MSM8226 system sleep: MPM wake routing and the system-sleep coordinator. */
+ 
+ &rpm {
+ 	mpm: interrupt-controller {
+diff --git a/arch/arm/boot/dts/qcom/qcom-msm8926-lg-madai.dts b/arch/arm/boot/dts/qcom/qcom-msm8926-lg-madai.dts
+index 70c5f4eb9..cbca9a7e9 100644
+--- a/arch/arm/boot/dts/qcom/qcom-msm8926-lg-madai.dts
++++ b/arch/arm/boot/dts/qcom/qcom-msm8926-lg-madai.dts
+@@ -853,3 +853,7 @@ &usb_hs_phy {
+ 	clocks = <&rpmcc RPM_SMD_XO_A_CLK_SRC>,
+ 		 <&gcc GCC_USB2A_PHY_SLEEP_CLK>;
+ };
++
++/* CPR-managed CPU voltage and MSM8226 system sleep. */
++#include "qcom-msm8926-lg-madai-cpr.dtsi"
++#include "qcom-msm8926-lg-madai-suspend.dtsi"

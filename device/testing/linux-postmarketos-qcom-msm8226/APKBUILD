@@ -3,7 +3,7 @@ maintainer="Newbyte <newbie13xd@gmail.com>"
 _flavor="postmarketos-qcom-msm8226"
 pkgname=linux-$_flavor
 pkgver=6.18.64
-pkgrel=10
+pkgrel=11
 pkgdesc="Mainline Kernel fork for APQ8026/MSM8226/MSM8926 devices"
 arch="armv7"
 _carch="arm"
@@ -57,6 +57,22 @@ source="
 	0018-camss-raise-vfe-clock-for-added-route.patch
 	0019-camss-vfe-4-1-stop-write-master-overflow-irq-storm.patch
 	0020-dts-msm8926-lg-madai-enable-modem-and-rmtfs.patch
+	0021-diagnostic-bound-madai-mx-startup-to-the-observed-ce.patch
+	0022-pmdomain-qcom-measure-msm8926-cpr-busy-at-suspend.patch
+	0023-pmdomain-qcom-sample-cpr-busy-across-suspend-quiesce.patch
+	0024-pmdomain-qcom-test-cpr-quiesce-without-nack-after-an.patch
+	0025-pmdomain-qcom-test-cpr-quiesce-without-ack-on-an-idl.patch
+	0026-pmdomain-qcom-use-a-valid-apc-selector-for-msm8926-s.patch
+	0027-pmdomain-qcom-reuse-the-apcs-regmap-for-msm8926-cpr.patch
+	0028-arm-qcom-probe-msm8226-hotplug-warm-entry-on-cpu3.patch
+	0029-arm-qcom-probe-cpu3-warm-wake-with-downstream-sgi-1.patch
+	0030-arm-qcom-verify-banked-wake-sgi-before-msm8226-probe.patch
+	0031-arm-qcom-admit-msm8226-secondary-restart-only-for-a-.patch
+	0032-irqchip-qcom-mpm-name-interrupts-that-block-msm8226-.patch
+	0033-irqchip-qcom-mpm-do-not-require-mpm-coverage-for-clo.patch
+	0034-arm-qcom-power-up-msm8226-secondaries-through-acc-af.patch
+	0035-arm-dts-qcom-msm8926-lg-madai-use-the-active-only-xo.patch
+	0036-arm-dts-qcom-msm8926-lg-madai-promote-cpr-and-system.patch
 "
 builddir="$srcdir/fx0-linux-$_commit"
 
@@ -107,7 +123,7 @@ package() {
 
 sha512sums="
 21a77e9db13ca82cdae13457b19db23b47dd665e56c349d9839419f1132710599cee02342e56b5c216fcadfb0fdc4f2fe62759828dea490eab34978dc5010d71  linux-fx0-c3e72d14babc2e875b89cadde5ed57bb54b11a0b.tar.gz
-dd09a5ad914ff7914ed183397f47d393a4ab89c12036c645ebe385425a1b5b27afe964c68730ab2cfee691b5b2eeec8bb731e2a5b3a99ee49d4ecc11b9eaabf8  config-postmarketos-qcom-msm8226.armv7
+35f9c61ac1c43c7e65c95e1dc5354cb8d78c6f4ac82102ccad3d511b08a1615da336c048f46dc94c6012e7c90352cd4d6dcb73145b87956e044fd173b54eafca  config-postmarketos-qcom-msm8226.armv7
 8b40acb615e90a18eaf6373e12dc4ba55054951a78dee7e62276dba941e761b2a8920b925945dc7aabcf28122c224c7de2eae4bbd02d709d4e3da75142db03ae  0001-fx0-smbb-battery-voltage.patch
 ed49d01cea77104e642546f1fabf2ab331a1c3bc1247eb78e55d7e1ab18df4a3392a4e3ca45753cb1ff78102605793a0da44761b4dea8567a4a1e7f65b76c348  0002-camss-msm8226-guard-active-stream-sleep.patch
 48240ceb746f918e7f605404964d4941f175ad6081844fc298fb5fb3b2cb1c302836bef1f42f88a4af7a635564d9421059e1946a035afc52b9c21cbced7e5d13  0003-camss-gen1-ignore-wm-completion-while-stopping.patch
@@ -128,4 +144,20 @@ b18d992ab61d50da65d0345ec4b63d92ded953423accc9fc5e767ee1ec2a86cd82d12371410f4237
 5e3bf7de3ae65b3c4270e88a62bc7a67c65fcb3e887386170bca58e01a94d728dc07947f25517f114cdb1d15aa6592d31abe0eab3e61ce1523a7f9433f5a60b6  0018-camss-raise-vfe-clock-for-added-route.patch
 4595327a88776e4d89731afcc956caf7372f65d4eaf16379b7faa6619883c8e6b9dcbc35a17600a36799468862c8755973e8a456533d2c7c15f20abf35b7dc8b  0019-camss-vfe-4-1-stop-write-master-overflow-irq-storm.patch
 47835c1bc38ba4f4a5891c3e6f275d0e0925d50d2a59de7b343e6cea2d8e8da5e79667922c333bd9a89006c5938960a1d0a1fe4bce81d7905ed09f869fb0de0d  0020-dts-msm8926-lg-madai-enable-modem-and-rmtfs.patch
+aa8b8692d60acec9967358508377f8a60c2167b84d8e5a71650c00fdb08a9ad9101dd3fd47b149ce7dac1fe7cda6d42c91e78657859b0edde6094b936d5e88d1  0021-diagnostic-bound-madai-mx-startup-to-the-observed-ce.patch
+d32bb051c9d1316fb44bfaa224de62aea821dd43568f8df9cbfc98f6c0fe5f440d47ea593f08540f8000d740f0eb668b81c9c1c7546ab7ee983729ab9b4511a7  0022-pmdomain-qcom-measure-msm8926-cpr-busy-at-suspend.patch
+ff46b48c5eb3da45b4c7b611c7d7ed7a41afe137bb786bc87769f3d3d9e705ac5294278dbe557efdcb3a7c32292a496e21cf107ea9081485606d8d920f84ca4c  0023-pmdomain-qcom-sample-cpr-busy-across-suspend-quiesce.patch
+969e06810a28219aba0ecea653dfd53c61d83e7c25dda4c6413cc9fc2569e7447a713b80d5ad66213c1c07bd2b5d28f7ddbdda662f46b7350def257d13e86c6d  0024-pmdomain-qcom-test-cpr-quiesce-without-nack-after-an.patch
+06fb3434f09e84112278928984057a2d8d3355dc2120b37bb67f3f42f9a438af5125276d559c4dbfc28d74c84c11db3cc03c733b6811fc60a4cc913570523ae4  0025-pmdomain-qcom-test-cpr-quiesce-without-ack-on-an-idl.patch
+f7cbe3683ef0cb27577fbee06a3b1f68f7411fbd94970ce1c636ae12d2080f8aea512b96f3bfa2a5904e1cfb21aa1c9149eb74baaa807583cbea08ea32db47a5  0026-pmdomain-qcom-use-a-valid-apc-selector-for-msm8926-s.patch
+ef151f675b0b38e624d7754a3e938c6d134e6ec2f57fefb864f0ec3f3901ebe37286589f9f440755965cd59d935e0c88e69d36233824a349a4133b235e08392c  0027-pmdomain-qcom-reuse-the-apcs-regmap-for-msm8926-cpr.patch
+b69feec607037f66c67b5151ac79f94f76e8e94188ceda4394cc8bd700dc8931d740f833657bcc88b95981fb19c9eb1827b049ccd4c55e3d4f86f05b96f1b845  0028-arm-qcom-probe-msm8226-hotplug-warm-entry-on-cpu3.patch
+5a9a361b2ff7cca1442be876e85bb5b794351863a5e6c6fdfc13cba4d9c4f73bc6eb43dcbdec57a94137e893ed17eb3c7b1b329149191cb94a946272b9eb0684  0029-arm-qcom-probe-cpu3-warm-wake-with-downstream-sgi-1.patch
+4b50c37ee7bf1b142525b74dd04276346b515b49c49f03114f17b8396fcc2a0845b9b2f31394116d9af6931ada5de43345818d6bd4ebd4bbaae1b5815e86c89e  0030-arm-qcom-verify-banked-wake-sgi-before-msm8226-probe.patch
+5c49c6acab910fe597ad1c33217a72f06179bd8b7d5b78a8ce1f436f5b83f1c69d2d862d45218d1caf36b3d90a38a621bb0d7edd851507c37c29aee2126e6e81  0031-arm-qcom-admit-msm8226-secondary-restart-only-for-a-.patch
+41a2a1c8fc72d4dd6d9095e2e46de381bc6d638cfa30b74ae320aab704cb0cbb543a214e4c1cab78eca33624ae3c993cc4e6bb1d880e950a6c492d16940edbf5  0032-irqchip-qcom-mpm-name-interrupts-that-block-msm8226-.patch
+9f49fc1fe57a860ad70ee0094d3ed5b26fa33e5247eb8f736ec50d64e9d4ba03b3245c66e6eddba248b5404ca2ab55a736b4d6a6c5d9bd4524055714bf6614da  0033-irqchip-qcom-mpm-do-not-require-mpm-coverage-for-clo.patch
+4be502c48caedcb8afc8300a93557136b090d974817d757dc84cbe1c41b7cbbf7195c4818aa6e631d7d38ed31acad85913b74e9cb98564d7238f2677e5645672  0034-arm-qcom-power-up-msm8226-secondaries-through-acc-af.patch
+ff67ec3c766fff2354e15e429db0f19733250038425313fe7d1f8d367de18ab4bf8f8a8587777006b8c25b9de92f42eabcbd33cdf67899ec5742e637f938d712  0035-arm-dts-qcom-msm8926-lg-madai-use-the-active-only-xo.patch
+bc8979a6996d5b699b56220912c17f70a6ce80025c5052499b457ba4feeb88757f0cdb47de7be39444df8b9bfaa15f8f482ffeebcc31d74ba8b1643a0a2b95a2  0036-arm-dts-qcom-msm8926-lg-madai-promote-cpr-and-system.patch
 "

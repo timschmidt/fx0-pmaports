@@ -1,0 +1,32 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Timothy Schmidt <timschmidt@gmail.com>
+Date: Sat, 21 Nov 2026 04:16:46 -0500
+Subject: [PATCH 12/16] irqchip: qcom-mpm: name interrupts that block MSM8226
+ system sleep
+
+Log each enabled no-suspend or wake-armed interrupt that the MPM cannot
+wake the system from when it refuses system sleep.
+
+Assisted-by: LLM [Claude Code]
+---
+ drivers/irqchip/irq-qcom-mpm.c | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/drivers/irqchip/irq-qcom-mpm.c b/drivers/irqchip/irq-qcom-mpm.c
+index 053089ada..623bc755b 100644
+--- a/drivers/irqchip/irq-qcom-mpm.c
++++ b/drivers/irqchip/irq-qcom-mpm.c
+@@ -499,7 +499,12 @@ static bool qcom_mpm_wake_covered(struct qcom_mpm_priv *priv)
+ 		}
+ 		if (required && !qcom_mpm_irq_covered(priv, data)) {
+ 			covered = false;
+-			break;
++			/* FX0 DIAGNOSTIC: name every interrupt that blocks system sleep. */
++			pr_info("FX0_MPM_UNCOVERED irq=%u hwirq=%lu domain=%s armed=%d disabled=%d flags=0x%x name=%s\n",
++				irq, data->hwirq, data->domain ? data->domain->name : "-",
++				irqd_is_wakeup_armed(data), irqd_irq_disabled(data),
++				desc->action ? desc->action->flags : 0,
++				desc->action && desc->action->name ? desc->action->name : "-");
+ 		}
+ 	}
+ 	rcu_read_unlock();

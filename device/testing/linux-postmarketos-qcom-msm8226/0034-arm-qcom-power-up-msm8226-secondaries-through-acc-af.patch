@@ -1,0 +1,96 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Timothy Schmidt <timschmidt@gmail.com>
+Date: Sat, 21 Nov 2026 04:16:46 -0500
+Subject: [PATCH 14/16] ARM: qcom: power up MSM8226 secondaries through ACC
+ after system sleep
+
+A real system collapse (L2 off with the RPM handshake) loses the parked
+secondaries and their banked wake SGI enable, so the managed restart's
+SGI 1 is never delivered and all three CPUs time out with -EIO. Record
+the power loss when cpu_suspend() returns from a real collapse and
+power those cores up through their ACC for the next restart.
+
+Assisted-by: LLM [Claude Code]
+---
+ arch/arm/mach-qcom/platsmp.c  | 12 +++++++++++-
+ drivers/soc/qcom/msm8226-pm.c | 18 +++++++++++++++++-
+ include/soc/qcom/msm8226-pm.h |  2 ++
+ 3 files changed, 30 insertions(+), 2 deletions(-)
+
+diff --git a/arch/arm/mach-qcom/platsmp.c b/arch/arm/mach-qcom/platsmp.c
+index 5e67d9fa5..4f0c11c96 100644
+--- a/arch/arm/mach-qcom/platsmp.c
++++ b/arch/arm/mach-qcom/platsmp.c
+@@ -445,7 +445,17 @@ static int msm8226_restart_secondary(unsigned int cpu, atomic_t *restart)
+ 	    MSM8226_RESTART_OFFLINE)
+ 		return -EBUSY;
+ 
+-	ret = gic_send_cpu_wakeup_sgi(cpu, MSM8226_WAKE_SGI);
++	/*
++	 * After system sleep collapsed the cluster, the parked core and its
++	 * banked wake SGI enable are gone: power it up through its ACC instead.
++	 * Firmware then enters the warm vector, which claims this request.
++	 */
++	if (qcom_msm8226_cpu_power_lost(cpu)) {
++		pr_info("CPU%u: MSM8226 power lost in system sleep, ACC power-up\n", cpu);
++		ret = cortex_a7_release_secondary(cpu);
++	} else {
++		ret = gic_send_cpu_wakeup_sgi(cpu, MSM8226_WAKE_SGI);
++	}
+ 	if (ret && !msm8226_cancel_secondary_boot(cpu))
+ 		return 0;
+ 	return ret;
+diff --git a/drivers/soc/qcom/msm8226-pm.c b/drivers/soc/qcom/msm8226-pm.c
+index 13d3d0ed3..ef6d1e0dc 100644
+--- a/drivers/soc/qcom/msm8226-pm.c
++++ b/drivers/soc/qcom/msm8226-pm.c
+@@ -47,6 +47,14 @@ struct msm8226_pm {
+ };
+ 
+ static struct msm8226_pm *msm8226_pm;
++
++/* Secondaries whose power and banked GIC state did not survive system sleep. */
++static unsigned long msm8226_power_lost;
++
++bool qcom_msm8226_cpu_power_lost(unsigned int cpu)
++{
++	return cpu < MSM8226_CPUS && test_and_clear_bit(cpu, &msm8226_power_lost);
++}
+ /* SPM is built in, has no unregister path and suppresses manual unbinding. */
+ static struct spm_driver_data *msm8226_cpu_spm[MSM8226_CPUS];
+ 
+@@ -155,8 +163,16 @@ static int msm8226_suspend_enter(suspend_state_t state)
+ 	if (ret)
+ 		goto cluster_exit;
+ 	ret = spm_set_low_power_mode(msm8226_cpu_spm[0], PM_SLEEP_MODE_PC);
+-	if (!ret)
++	if (!ret) {
+ 		ret = cpu_suspend((unsigned long)pm, msm8226_system_finisher);
++		/* A zero return means the cluster really collapsed and resumed. */
++		if (!ret) {
++			int cpu;
++
++			for (cpu = 1; cpu < MSM8226_CPUS; cpu++)
++				set_bit(cpu, &msm8226_power_lost);
++		}
++	}
+ 
+ 	/* Both wake and failed entry must disarm before generic WFI/notifiers. */
+ 	cpu_restore = spm_set_low_power_mode(msm8226_cpu_spm[0], PM_SLEEP_MODE_STBY);
+diff --git a/include/soc/qcom/msm8226-pm.h b/include/soc/qcom/msm8226-pm.h
+index 264d5f250..ed2281d1a 100644
+--- a/include/soc/qcom/msm8226-pm.h
++++ b/include/soc/qcom/msm8226-pm.h
+@@ -9,10 +9,12 @@
+ #if IS_ENABLED(CONFIG_QCOM_MSM8226_PM)
+ bool qcom_msm8226_pm_active(void);
+ int qcom_msm8226_cpu_collapse(unsigned int cpu);
++bool qcom_msm8226_cpu_power_lost(unsigned int cpu);
+ int qcom_msm8226_cpu_kill(unsigned int cpu);
+ #else
+ static inline bool qcom_msm8226_pm_active(void) { return false; }
+ static inline int qcom_msm8226_cpu_collapse(unsigned int cpu) { return -ENODEV; }
++static inline bool qcom_msm8226_cpu_power_lost(unsigned int cpu) { return false; }
+ static inline int qcom_msm8226_cpu_kill(unsigned int cpu) { return 1; }
+ #endif
+ 
