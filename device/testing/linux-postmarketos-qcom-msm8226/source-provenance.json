@@ -17,9 +17,9 @@
   "normal_signed_builds_not_yet_qualified": true,
   "reader_source_commit": "c7ce2bb8cf78e852eaea6024188c4cf21a4cb355",
   "experimental_CPU_system_sleep_promoted": false,
-  "installed_source_parent": "6027ecb30af738c7bb5c386eaae5802cab3821d5",
-  "candidate_source_commit": "603a788eda425fd76ce7919ff7abc6048f907243",
-  "candidate_package_version": "6.18.64-r8",
+  "installed_source_parent": "603a788eda425fd76ce7919ff7abc6048f907243",
+  "candidate_source_commit": "6c5b6e7849fd52122123d1b72c0076f145209d5a",
+  "candidate_package_version": "6.18.64-r9",
   "packaged_camera_patches": [
     "0002-camss-msm8226-guard-active-stream-sleep.patch",
     "0003-camss-gen1-ignore-wm-completion-while-stopping.patch",
@@ -36,7 +36,7 @@
     "0010-smbb-gate-stock-fx0-comparator-window.patch",
     "0011-smbb-track-managed-recharge-threshold.patch"
   ],
-  "configuration_change": "none from r7 (r6 plus CONFIG_PM_WAKELOCKS=y)",
+  "configuration_change": "none from r8",
   "charging_source_equivalent_to_RAM_candidate": "8e5eacff1484771c0c96de28b018896a2cd7b738",
   "packaged_battery_patches": [
     "0012-smbb-estimate-capacity-and-report-full.patch",
@@ -52,5 +52,7 @@
     "0018-camss-raise-vfe-clock-for-added-route.patch"
   ],
   "two_sensor_camera_source": "timschmidt/fx0-linux development/fx0-camss-two-sensor-01; 0015 and 0016 are Allan Siriani's posted upstream CAMSS v3 4/4 and 2/4 (linux-kernel 2026/11/11/2186, 2162)",
-  "two_sensor_live_module_evidence": "timschmidt/fx0 review/fx0-power-management-6.18.64-01 @ 44aca63 evidence/2026-11-20-fx0-camss-two-sensor.json"
+  "two_sensor_live_module_evidence": "timschmidt/fx0 review/fx0-power-management-6.18.64-01 @ 44aca63 evidence/2026-11-20-fx0-camss-two-sensor.json",
+  "packaged_overflow_guard_patch": "0019-camss-vfe-4-1-stop-write-master-overflow-irq-storm.patch",
+  "overflow_guard_source": "timschmidt/fx0-linux development/fx0-camss-vfe-overflow-guard-01"
 }
