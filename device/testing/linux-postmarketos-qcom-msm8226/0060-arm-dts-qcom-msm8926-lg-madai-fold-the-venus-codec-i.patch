@@ -1,0 +1,56 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Timothy Schmidt <timschmidt@gmail.com>
+Date: Sat, 21 Nov 2026 22:04:52 -0500
+Subject: [PATCH 22/22] ARM: dts: qcom: msm8926-lg-madai: fold the Venus codec
+ into the Madai DT
+
+Include the Venus codec, its IOMMU, the BIMC and MMSS NoC interconnect
+providers and the firmware carveout from a Madai fragment instead of a
+separate opt-in DTB. The 5 MiB carveout at 0x0f500000 sits between the
+ADSP region and SMEM and overlaps no other reservation.
+
+Assisted-by: LLM [Claude Code]
+---
+ arch/arm/boot/dts/qcom/Makefile                                | 1 -
+ ...926-lg-madai-venus.dts => qcom-msm8926-lg-madai-venus.dtsi} | 2 +-
+ arch/arm/boot/dts/qcom/qcom-msm8926-lg-madai.dts               | 3 +++
+ 3 files changed, 4 insertions(+), 2 deletions(-)
+ rename arch/arm/boot/dts/qcom/{qcom-msm8926-lg-madai-venus.dts => qcom-msm8926-lg-madai-venus.dtsi} (97%)
+
+diff --git a/arch/arm/boot/dts/qcom/Makefile b/arch/arm/boot/dts/qcom/Makefile
+index d8b842956..d04ef20b2 100644
+--- a/arch/arm/boot/dts/qcom/Makefile
++++ b/arch/arm/boot/dts/qcom/Makefile
+@@ -38,7 +38,6 @@ dtb-$(CONFIG_ARCH_QCOM) += \
+ 	qcom-msm8916-samsung-serranove.dtb \
+ 	qcom-msm8926-htc-memul.dtb \
+ 	qcom-msm8926-lg-madai.dtb \
+-	qcom-msm8926-lg-madai-venus.dtb \
+ 	qcom-msm8926-microsoft-superman-lte.dtb \
+ 	qcom-msm8926-microsoft-tesla.dtb \
+ 	qcom-msm8926-motorola-peregrine.dtb \
+diff --git a/arch/arm/boot/dts/qcom/qcom-msm8926-lg-madai-venus.dts b/arch/arm/boot/dts/qcom/qcom-msm8926-lg-madai-venus.dtsi
+similarity index 97%
+rename from arch/arm/boot/dts/qcom/qcom-msm8926-lg-madai-venus.dts
+rename to arch/arm/boot/dts/qcom/qcom-msm8926-lg-madai-venus.dtsi
+index 5e7bc2187..06e24e682 100644
+--- a/arch/arm/boot/dts/qcom/qcom-msm8926-lg-madai-venus.dts
++++ b/arch/arm/boot/dts/qcom/qcom-msm8926-lg-madai-venus.dtsi
+@@ -1,5 +1,5 @@
+ // SPDX-License-Identifier: GPL-2.0-only
+-#include "qcom-msm8926-lg-madai.dts"
++/* MSM8226 Venus video codec, its IOMMU and its memory route. */
+ #include <dt-bindings/interconnect/qcom,msm8226.h>
+ 
+ &{/reserved-memory} {
+diff --git a/arch/arm/boot/dts/qcom/qcom-msm8926-lg-madai.dts b/arch/arm/boot/dts/qcom/qcom-msm8926-lg-madai.dts
+index cbca9a7e9..619f7ffab 100644
+--- a/arch/arm/boot/dts/qcom/qcom-msm8926-lg-madai.dts
++++ b/arch/arm/boot/dts/qcom/qcom-msm8926-lg-madai.dts
+@@ -857,3 +857,6 @@ &usb_hs_phy {
+ /* CPR-managed CPU voltage and MSM8226 system sleep. */
+ #include "qcom-msm8926-lg-madai-cpr.dtsi"
+ #include "qcom-msm8926-lg-madai-suspend.dtsi"
++
++/* Venus video codec. */
++#include "qcom-msm8926-lg-madai-venus.dtsi"

@@ -3,7 +3,7 @@ maintainer="Newbyte <newbie13xd@gmail.com>"
 _flavor="postmarketos-qcom-msm8226"
 pkgname=linux-$_flavor
 pkgver=6.18.64
-pkgrel=12
+pkgrel=13
 pkgdesc="Mainline Kernel fork for APQ8026/MSM8226/MSM8926 devices"
 arch="armv7"
 _carch="arm"
@@ -75,6 +75,28 @@ source="
 	0036-arm-dts-qcom-msm8926-lg-madai-promote-cpr-and-system.patch
 	0037-pmdomain-qcom-cpr-let-the-msm8926-sleep-set-request.patch
 	0038-regulator-qcom_smd-ignore-a-disabled-voter-s-voltage.patch
+	0039-media-venus-require-a-bounded-legacy-arm32-dma-apert.patch
+	0040-dt-bindings-describe-msm8226-venus-and-its-iommu.patch
+	0041-media-venus-add-split-msm8226-register-and-bandwidth.patch
+	0042-arm-dts-qcom-add-disabled-madai-venus-diagnostic-top.patch
+	0043-iommu-qcom-propagate-resume-failures-when-attaching.patch
+	0044-interconnect-qcom-make-legacy-noc-qos-port-spacing-c.patch
+	0045-dt-bindings-describe-the-msm8226-venus-memory-route.patch
+	0046-interconnect-qcom-add-the-msm8226-venus-to-memory-pr.patch
+	0047-media-venus-wire-the-msm8226-memory-path-in-the-mada.patch
+	0048-iommu-qcom-guard-identity-mmio-and-fix-multi-context.patch
+	0049-iommu-qcom-keep-venus-page-table-cleanup-independent.patch
+	0050-dt-bindings-document-the-shared-msm8226-multimedia-c.patch
+	0051-interconnect-qcom-preserve-shared-clock-votes-on-msm.patch
+	0052-media-venus-declare-msm8226-firmware-and-report-star.patch
+	0053-media-venus-allow-madai-s-optional-cpu-cfg-interconn.patch
+	0054-media-venus-balance-runtime-pm-references-on-teardow.patch
+	0055-iommu-qcom-invalidate-the-venus-context-on-runtime-r.patch
+	0056-media-venus-restrict-the-h.264-8x8-control-to-hfi-4x.patch
+	0057-media-venus-keep-msm8226-h.264-headers-joined.patch
+	0058-interconnect-qcom-keep-the-madai-mmss-interface-cloc.patch
+	0059-arm-dts-qcom-enable-the-venus-route-in-the-separate.patch
+	0060-arm-dts-qcom-msm8926-lg-madai-fold-the-venus-codec-i.patch
 "
 builddir="$srcdir/fx0-linux-$_commit"
 
@@ -125,7 +147,7 @@ package() {
 
 sha512sums="
 21a77e9db13ca82cdae13457b19db23b47dd665e56c349d9839419f1132710599cee02342e56b5c216fcadfb0fdc4f2fe62759828dea490eab34978dc5010d71  linux-fx0-c3e72d14babc2e875b89cadde5ed57bb54b11a0b.tar.gz
-35f9c61ac1c43c7e65c95e1dc5354cb8d78c6f4ac82102ccad3d511b08a1615da336c048f46dc94c6012e7c90352cd4d6dcb73145b87956e044fd173b54eafca  config-postmarketos-qcom-msm8226.armv7
+212fed4a5c9e54432fff8aac07de69ca1e9eecc55be9b016d1c06babb7664fdf5dff5b1054ff1ab5c06c8d0c3bc5dfdd986fcd08d709d0c3db2312949efaf920  config-postmarketos-qcom-msm8226.armv7
 8b40acb615e90a18eaf6373e12dc4ba55054951a78dee7e62276dba941e761b2a8920b925945dc7aabcf28122c224c7de2eae4bbd02d709d4e3da75142db03ae  0001-fx0-smbb-battery-voltage.patch
 ed49d01cea77104e642546f1fabf2ab331a1c3bc1247eb78e55d7e1ab18df4a3392a4e3ca45753cb1ff78102605793a0da44761b4dea8567a4a1e7f65b76c348  0002-camss-msm8226-guard-active-stream-sleep.patch
 48240ceb746f918e7f605404964d4941f175ad6081844fc298fb5fb3b2cb1c302836bef1f42f88a4af7a635564d9421059e1946a035afc52b9c21cbced7e5d13  0003-camss-gen1-ignore-wm-completion-while-stopping.patch
@@ -164,4 +186,26 @@ ff67ec3c766fff2354e15e429db0f19733250038425313fe7d1f8d367de18ab4bf8f8a8587777006
 bc8979a6996d5b699b56220912c17f70a6ce80025c5052499b457ba4feeb88757f0cdb47de7be39444df8b9bfaa15f8f482ffeebcc31d74ba8b1643a0a2b95a2  0036-arm-dts-qcom-msm8926-lg-madai-promote-cpr-and-system.patch
 32333a14632309df2d5effa820fe9c52128a7ed79a33761ab3cdce052acf004cb3bcfae85aa5fb2e9885b062a9a272239f3b3ad82221137198ed73181f023733  0037-pmdomain-qcom-cpr-let-the-msm8926-sleep-set-request.patch
 6f08561c92eb652508ca4038a87391578361edc69fa37d997d89b752e9039f6bc44470f2895ff09490f1c7ae11cfc4a14d6580c004cbca45df55115399db63ea  0038-regulator-qcom_smd-ignore-a-disabled-voter-s-voltage.patch
+4b4d5739be854b45e9a8ad69cdfc583ab5de11640d3554512b9e7a4a5f7d238e1d7be8329ecac7c3d020b9591bf55f92f39fb84dfbfd50f615e21ffae50e03e6  0039-media-venus-require-a-bounded-legacy-arm32-dma-apert.patch
+22b0b6455b35b18c83edffaa6cd5b83d664983bebd27f013533b80d4db3e3b358763e37f867e8e68a0a54b5f241297cfca50acb4856ec20e54b9315961540939  0040-dt-bindings-describe-msm8226-venus-and-its-iommu.patch
+f07947cf534e4d90b3b8bcd61ad5e77f9c8045a02d56fd8f570909fbf64169247ae2d11bdf9513d5850e33dc46cc2fa819b23d810e557de30e0bf2c6e5a622dc  0041-media-venus-add-split-msm8226-register-and-bandwidth.patch
+3a7059fd18f3667c942caadc71401bf534dde7b3bb28a8f867128cb4fecad37b745d6d1014a960fe788b30534d77a478865bb58edb46ae3ca0937c0b9b74895f  0042-arm-dts-qcom-add-disabled-madai-venus-diagnostic-top.patch
+f310ec9294fda8c2a2a75faacb3e318bb28640586ed956d182ee6bd0474454990d3086f4dcffb14a386de8bb4124419e13a6bae26efc1b357de823e252454ad4  0043-iommu-qcom-propagate-resume-failures-when-attaching.patch
+2e2cbccb2b1ac68676569ce4016f07db63f10ffb5c26f98c8b906d310b6916a9fbcbbc5939e21dd0726e43dacbdc3b7c3f268a19515ec87becb4713949a5329a  0044-interconnect-qcom-make-legacy-noc-qos-port-spacing-c.patch
+47cb0df401b329f93a73b4490e4d6960c0d458a112ac3793929827dee7539615cbf0e21a9263ccb35a2d86345c3ea39e2d4e03d621334f8668ecc77d69849c93  0045-dt-bindings-describe-the-msm8226-venus-memory-route.patch
+b7775168b35a113dce32e1508f793c9c105bb1f60bb6a1a2481c3c32b95b67d6662c619ea9ce06adfb3398823f34b494a4751bd5c1cda783503143e100d6d6fc  0046-interconnect-qcom-add-the-msm8226-venus-to-memory-pr.patch
+a185a28f01acc3164ab49480aef18e3dcbad27db851d593886417d5c807385290ff50e5100affcce2a142bf20cd7c6f0c44bf6fb17d19085a5e99ba7b9558ba6  0047-media-venus-wire-the-msm8226-memory-path-in-the-mada.patch
+34173f96943750ef286c84d3d7cded5f8ac5cf619553270aba42da3cd609a48398fdd2a7f0434920007f4896022b0636563c16e7f9ce7df1e7ebf9c50aa295b8  0048-iommu-qcom-guard-identity-mmio-and-fix-multi-context.patch
+0527372b0f1ded5e23dd132f9a7b139e15def462bb3ceae451f041c7356f519a3c718e954fad7c94ef4e82664cb275f3893a625ecd43323147acc2f311e3d1ce  0049-iommu-qcom-keep-venus-page-table-cleanup-independent.patch
+13dbd3edaf3d4395e96b8da911320911b94c7e3329c0fa6f7eac5efa8a43d20a0440138b98c714297134cc85b32b3386570cffbeefc1a567f7ca73fc3adeaae6  0050-dt-bindings-document-the-shared-msm8226-multimedia-c.patch
+3086eb0db1469393afcebd8310412a4ee524ab09c2cf6e9581c9b412a21fa5ed1984aa3a892a46ee834f47e54f1784e055b603bbe2dc41417bfc5dc5c0863c18  0051-interconnect-qcom-preserve-shared-clock-votes-on-msm.patch
+e00846772ee1e02a58117d151c346c6b20ae9fb2f8ae9250272de6e0a30478e36f9f1838e5d8d9d5f70074a2c7557a715e75cbaefed31b9dc31b34ff3f12b37d  0052-media-venus-declare-msm8226-firmware-and-report-star.patch
+791b7007ea58ebae98554c360beb562a204888a922f3dfb2c19d2226dce7b33736622cb6a04aa870693c1e640a8926ec62b081cf4d3c61a44c3bee6a8d79fff6  0053-media-venus-allow-madai-s-optional-cpu-cfg-interconn.patch
+b04072e6b81320c51bdd5797a3a4240bfcbd5b93dfcdc4e674f81e75ea3e9748b524908aefbba0c4429f852c12faeb30c34ba753299a343ef66b725ac04a8e36  0054-media-venus-balance-runtime-pm-references-on-teardow.patch
+7d662be428837023cc98a253be82f629a5514619d137dbe9ce9033b9ffca240b52209c206c4bc58532e76d5970eb342ad56f17a3b96e13d26c0069aec570b26f  0055-iommu-qcom-invalidate-the-venus-context-on-runtime-r.patch
+90ed3accaa53e276016cbce4d66a75edc9b9168937a9d8c1aa4d0312a505077d3c933dcbd2da5814d8eaf0d7537c0848817a723a783635696233736fd51740ab  0056-media-venus-restrict-the-h.264-8x8-control-to-hfi-4x.patch
+10fd4426fcd711ab62c599fe6d1591acb37d93e9d484001e96e10cb11373eac7804dcee5fe9652f3338e0eb3b7e01e2ef73cec94dda8e786b7fed9309015d2a5  0057-media-venus-keep-msm8226-h.264-headers-joined.patch
+eb391465b5cce8ede41c849e5d84e69ebd8f535255fd04369ca238d8fd7d7bef2fcade4c54dcbfd178027d96c26644b60d66f2e167865be5f821ebb5b769828e  0058-interconnect-qcom-keep-the-madai-mmss-interface-cloc.patch
+4a9215d0e6e0dd20b766e46ddf5b36095311b83de00a87cf1667638cd796cf8b675a813d5aa1c88325f002cccef1323f214bf40b44d0a658e1276f47df385ba3  0059-arm-dts-qcom-enable-the-venus-route-in-the-separate.patch
+8b95f2e0bcc20bfae0fc2ed1f329783a5bfd56bf332989148ccbd6a8e8d708bc6ff73fede2e4e349409e09d2850db0ba3af1000c743fe13df76c8fde982aa2ec  0060-arm-dts-qcom-msm8926-lg-madai-fold-the-venus-codec-i.patch
 "

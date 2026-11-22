@@ -1,0 +1,747 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Codex <codex@openai.com>
+Date: Tue, 17 Nov 2026 23:11:47 -0500
+Subject: [PATCH 03/22] media: venus: add split MSM8226 register and bandwidth
+ support
+
+Keep the wrapper clock selector under exclusive IOMMU ownership. Preserve the other bits when selecting the wrapper clock and check the readback before SCC context or bandwidth-fetch programming. Use stock MMCC rates, codec register presets, bandwidth thresholds and nonsecure IOVA window limits. Platform tables are based on the Linux Foundation downstream MSM8226 source. Require actual interconnect handles before codec startup.
+---
+ drivers/iommu/arm/arm-smmu/qcom_iommu.c       |  78 +++++++++++++-
+ drivers/media/platform/qcom/venus/core.c      | 102 ++++++++++++++++--
+ drivers/media/platform/qcom/venus/core.h      |  17 +++
+ drivers/media/platform/qcom/venus/firmware.c  |  40 +++----
+ drivers/media/platform/qcom/venus/hfi_venus.c |  74 +++++++------
+ .../media/platform/qcom/venus/pm_helpers.c    |  42 +++++---
+ 6 files changed, 276 insertions(+), 77 deletions(-)
+
+diff --git a/drivers/iommu/arm/arm-smmu/qcom_iommu.c b/drivers/iommu/arm/arm-smmu/qcom_iommu.c
+index e94be05ec..f101a646d 100644
+--- a/drivers/iommu/arm/arm-smmu/qcom_iommu.c
++++ b/drivers/iommu/arm/arm-smmu/qcom_iommu.c
+@@ -46,6 +46,7 @@
+ #define QCOM_IOMMU_MICRO_MMU_CTRL	(QCOM_IOMMU_IMPL_DEF + 0x000)
+ #define MICRO_MMU_CTRL_HALT_REQ		BIT(2)
+ #define MICRO_MMU_CTRL_IDLE		BIT(3)
++#define QCOM_IOMMU_WRAPPER_CLK_SEL	BIT(0)
+ 
+ /* Redirect all cacheable requests to the L2 slave port */
+ #define QCOM_IOMMU_ACTLR_BPRC		(BIT(28) | BIT(29) | BIT(30))
+@@ -85,6 +86,7 @@ struct qcom_iommu_cfg {
+ 	bool				 halt;
+ 	/* faulting transactions must terminate rather than stall */
+ 	bool				 no_stall;
++	bool				 has_wrapper_clk_sel;
+ 	const struct qcom_iommu_bfb_reg	*bfb;
+ 	unsigned int			 num_bfb;
+ 	const struct qcom_iommu_sid	*sids;	/* one SMR slot per entry */
+@@ -99,6 +101,7 @@ struct qcom_iommu_dev {
+ 	struct clk_bulk_data clks[CLK_NUM];
+ 	void __iomem		*local_base;
+ 	void __iomem		*global_base;
++	void __iomem		*wrapper_clk_sel;
+ 	u32			 sec_id;
+ 	bool			 non_secure;
+ 	u8			 max_asid;
+@@ -1063,6 +1066,15 @@ static int qcom_iommu_device_probe(struct platform_device *pdev)
+ 				     "missing global register space\n");
+ 	}
+ 
++	if (qcom_iommu->cfg && qcom_iommu->cfg->has_wrapper_clk_sel) {
++		res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "clock-select");
++		if (!res || resource_size(res) != sizeof(u32))
++			return dev_err_probe(dev, -EINVAL, "invalid wrapper clock register\n");
++		qcom_iommu->wrapper_clk_sel = devm_ioremap_resource(dev, res);
++		if (IS_ERR(qcom_iommu->wrapper_clk_sel))
++			return PTR_ERR(qcom_iommu->wrapper_clk_sel);
++	}
++
+ 	clk = devm_clk_get(dev, "iface");
+ 	if (IS_ERR(clk)) {
+ 		dev_err(dev, "failed to get iface clock\n");
+@@ -1082,17 +1094,21 @@ static int qcom_iommu_device_probe(struct platform_device *pdev)
+ 		dev_err(dev, "failed to get tbu clock\n");
+ 		return PTR_ERR(clk);
+ 	}
++	if (!clk && qcom_iommu->wrapper_clk_sel)
++		return dev_err_probe(dev, -EINVAL, "missing Venus TBU clock\n");
+ 	qcom_iommu->clks[CLK_TBU].clk = clk;
+ 
+ 	if (of_property_read_u32(dev->of_node, "qcom,iommu-secure-id",
+ 				 &qcom_iommu->sec_id)) {
+-		if (!qcom_iommu->cfg) {
++		if (!qcom_iommu->cfg || qcom_iommu->cfg->has_wrapper_clk_sel) {
+ 			dev_err(dev, "missing qcom,iommu-secure-id property\n");
+ 			return -ENODEV;
+ 		}
+ 		/* The secure world does not manage this instance at all */
+ 		qcom_iommu->non_secure = true;
+ 	}
++	if (qcom_iommu->wrapper_clk_sel && qcom_iommu->sec_id)
++		return dev_err_probe(dev, -EINVAL, "invalid secure ID for Venus IOMMU\n");
+ 
+ 	if (qcom_iommu_has_secure_context(qcom_iommu)) {
+ 		ret = qcom_iommu_sec_ptbl_init(dev);
+@@ -1158,6 +1174,22 @@ static void qcom_iommu_device_remove(struct platform_device *pdev)
+ 	platform_set_drvdata(pdev, NULL);
+ }
+ 
++static int qcom_iommu_select_wrapper_clk(struct qcom_iommu_dev *qcom_iommu)
++{
++	void __iomem *select = qcom_iommu->wrapper_clk_sel;
++	u32 value;
++
++	if (!select)
++		return 0;
++
++	value = readl(select);
++	writel(value & ~QCOM_IOMMU_WRAPPER_CLK_SEL, select);
++	if (readl(select) & QCOM_IOMMU_WRAPPER_CLK_SEL)
++		return -EIO;
++
++	return 0;
++}
++
+ static int __maybe_unused qcom_iommu_resume(struct device *dev)
+ {
+ 	struct qcom_iommu_dev *qcom_iommu = dev_get_drvdata(dev);
+@@ -1168,6 +1200,10 @@ static int __maybe_unused qcom_iommu_resume(struct device *dev)
+ 	if (ret < 0)
+ 		return ret;
+ 
++	ret = qcom_iommu_select_wrapper_clk(qcom_iommu);
++	if (ret)
++		goto err_disable_clks;
++
+ 	if (qcom_iommu->non_secure) {
+ 		ret = qcom_iommu_reset_ns(qcom_iommu);
+ 		if (ret)
+@@ -1411,12 +1447,52 @@ static const struct qcom_iommu_cfg msm8974_venus_cfg = {
+ 	.num_bfb = ARRAY_SIZE(msm8974_venus_bfb),
+ };
+ 
++/* Qualcomm MSM8226 downstream Venus bandwidth-fetch programming. */
++static const struct qcom_iommu_bfb_reg msm8226_venus_bfb[] = {
++	{ 0x04c, 0xffffffff },
++	{ 0x050, 0xffffffff },
++	{ 0x514, 0x00000004 },
++	{ 0x540, 0x00000008 },
++	{ 0x56c, 0x00000000 },
++	{ 0x0ac, 0x00000000 },
++	{ 0x15c, 0x00000094 },
++	{ 0x20c, 0x000000b4 },
++	{ 0x314, 0x00000000 },
++	{ 0x394, 0x00000094 },
++	{ 0x414, 0x00000114 },
++	{ 0x008, 0x00000000 },
++	{ 0x00c, 0x00000000 },
++	{ 0x010, 0x00000000 },
++	{ 0x014, 0x00000000 },
++	{ 0x018, 0x00000000 },
++	{ 0x01c, 0x00000000 },
++	{ 0x020, 0x00000000 },
++	{ 0x024, 0x00000000 },
++	{ 0x028, 0x00000000 },
++	{ 0x02c, 0x00000000 },
++	{ 0x030, 0x00000000 },
++	{ 0x034, 0x00000000 },
++	{ 0x038, 0x00000000 },
++};
++
++static const struct qcom_iommu_cfg msm8226_venus_cfg = {
++	.halt = true,
++	.no_stall = true,
++	.has_wrapper_clk_sel = true,
++	.fmt = ARM_V7S,
++	.no_afe = true,
++	.ctx_restore = true,
++	.bfb = msm8226_venus_bfb,
++	.num_bfb = ARRAY_SIZE(msm8226_venus_bfb),
++};
++
+ static const struct of_device_id qcom_iommu_of_match[] = {
+ 	{ .compatible = "qcom,msm-iommu-v1" },
+ 	{ .compatible = "qcom,msm-iommu-v2" },
+ 	{ .compatible = "qcom,msm8974-gpu-iommu", .data = &msm8974_gpu_cfg },
+ 	{ .compatible = "qcom,msm8226-gpu-iommu", .data = &msm8226_gpu_cfg },
+ 	{ .compatible = "qcom,msm8226-mdp-iommu", .data = &msm8226_mdp_cfg },
++	{ .compatible = "qcom,msm8226-venus-iommu", .data = &msm8226_venus_cfg },
+ 	{ .compatible = "qcom,msm8226-vfe-iommu", .data = &msm8226_vfe_cfg },
+ 	{ .compatible = "qcom,msm8974-mdp-iommu", .data = &msm8974_mdp_cfg },
+ 	{ .compatible = "qcom,msm8974-venus-iommu", .data = &msm8974_venus_cfg },
+diff --git a/drivers/media/platform/qcom/venus/core.c b/drivers/media/platform/qcom/venus/core.c
+index 7246e1fc1..3502121a1 100644
+--- a/drivers/media/platform/qcom/venus/core.c
++++ b/drivers/media/platform/qcom/venus/core.c
+@@ -282,6 +282,34 @@ static void venus_assign_register_offsets(struct venus_core *core)
+ 	}
+ }
+ 
++static int venus_map_registers(struct platform_device *pdev, struct venus_core *core)
++{
++	if (!core->res->split_reg_banks) {
++		core->base = devm_platform_ioremap_resource(pdev, 0);
++		if (IS_ERR(core->base))
++			return PTR_ERR(core->base);
++		venus_assign_register_offsets(core);
++		return 0;
++	}
++
++	core->vbif_base = devm_platform_ioremap_resource_byname(pdev, "vbif");
++	if (IS_ERR(core->vbif_base))
++		return PTR_ERR(core->vbif_base);
++	core->cpu_base = devm_platform_ioremap_resource_byname(pdev, "cpu");
++	if (IS_ERR(core->cpu_base))
++		return PTR_ERR(core->cpu_base);
++	core->wrapper_version = devm_platform_ioremap_resource_byname(pdev, "wrapper-version");
++	if (IS_ERR(core->wrapper_version))
++		return PTR_ERR(core->wrapper_version);
++	core->wrapper_base = devm_platform_ioremap_resource_byname(pdev, "wrapper");
++	if (IS_ERR(core->wrapper_base))
++		return PTR_ERR(core->wrapper_base);
++
++	core->cpu_cs_base = core->cpu_base + (CPU_CS_BASE - CPU_BASE);
++	core->cpu_ic_base = core->cpu_base + (CPU_IC_BASE - CPU_BASE);
++	return 0;
++}
++
+ static irqreturn_t venus_isr_thread(int irq, void *dev_id)
+ {
+ 	struct venus_core *core = dev_id;
+@@ -458,10 +486,13 @@ static int venus_probe(struct platform_device *pdev)
+ 		return -ENOMEM;
+ 
+ 	core->dev = dev;
++	core->res = of_device_get_match_data(dev);
++	if (!core->res)
++		return -ENODEV;
+ 
+-	core->base = devm_platform_ioremap_resource(pdev, 0);
+-	if (IS_ERR(core->base))
+-		return PTR_ERR(core->base);
++	ret = venus_map_registers(pdev, core);
++	if (ret)
++		return ret;
+ 
+ 	core->video_path = devm_of_icc_get(dev, "video-mem");
+ 	if (IS_ERR(core->video_path))
+@@ -470,15 +501,14 @@ static int venus_probe(struct platform_device *pdev)
+ 	core->cpucfg_path = devm_of_icc_get(dev, "cpu-cfg");
+ 	if (IS_ERR(core->cpucfg_path))
+ 		return PTR_ERR(core->cpucfg_path);
++	if (core->res->require_interconnects && (!core->video_path || !core->cpucfg_path))
++		return dev_err_probe(dev, -ENODEV,
++				     "video-mem and cpu-cfg interconnects required\n");
+ 
+ 	core->irq = platform_get_irq(pdev, 0);
+ 	if (core->irq < 0)
+ 		return core->irq;
+ 
+-	core->res = of_device_get_match_data(dev);
+-	if (!core->res)
+-		return -ENODEV;
+-
+ 	mutex_init(&core->pm_lock);
+ 
+ 	core->pm_ops = venus_pm_get(core->res->hfi_version);
+@@ -516,8 +546,6 @@ static int venus_probe(struct platform_device *pdev)
+ 	if (ret)
+ 		goto err_unresv_iova_region;
+ 
+-	venus_assign_register_offsets(core);
+-
+ 	ret = v4l2_device_register(dev, &core->v4l2_dev);
+ 	if (ret)
+ 		goto err_hfi_destroy;
+@@ -739,6 +767,61 @@ static const struct dev_pm_ops venus_pm_ops = {
+ 	SET_RUNTIME_PM_OPS(venus_runtime_suspend, venus_runtime_resume, NULL)
+ };
+ 
++static const struct freq_tbl msm8226_freq_table[] = {
++	{ 352800, 160000000 },
++	{ 244800, 133330000 },
++	{ 108000,  66700000 },
++};
++
++static const struct reg_val msm8226_reg_preset[] = {
++	{ 0xe0024, 0x00000000 },
++	{ 0x80124, 0x00000003 },
++	{ 0xe0020, 0x05555556 },
++	{ 0x800b0, 0x10101001 },
++	{ 0x800b4, 0x00101010 },
++	{ 0x800c0, 0x1010100f },
++	{ 0x800c4, 0x00101010 },
++	{ 0x800d0, 0x00000010 },
++	{ 0x800d4, 0x00000010 },
++	{ 0x800d8, 0x00000707 },
++};
++
++/* Downstream DDR usecases, capped at the last available vector. */
++static const struct bw_tbl msm8226_bw_enc[] = {
++	{ 352800, 866000, 953000 },
++	{ 110400, 384000, 422000 },
++	{  36000, 129000, 142000 },
++};
++
++static const struct bw_tbl msm8226_bw_dec[] = {
++	{ 352800, 505000, 657000 },
++	{ 110400, 268000, 348000 },
++	{  36000, 103000, 134000 },
++};
++
++static const struct venus_resources msm8226_res = {
++	.freq_tbl = msm8226_freq_table,
++	.freq_tbl_size = ARRAY_SIZE(msm8226_freq_table),
++	.reg_tbl = msm8226_reg_preset,
++	.reg_tbl_size = ARRAY_SIZE(msm8226_reg_preset),
++	.bw_tbl_enc = msm8226_bw_enc,
++	.bw_tbl_enc_size = ARRAY_SIZE(msm8226_bw_enc),
++	.bw_tbl_dec = msm8226_bw_dec,
++	.bw_tbl_dec_size = ARRAY_SIZE(msm8226_bw_dec),
++	.clks = { "core", "iface", "bus" },
++	.clks_num = 3,
++	.max_load = 352800,
++	.hfi_version = HFI_VERSION_1XX,
++	.vmem_id = VIDC_RESOURCE_NONE,
++	.dma_mask = DMA_BIT_MASK(31),
++	.fwname = "qcom/msm8226/venus.mdt",
++	.dec_nodename = "video-decoder",
++	.enc_nodename = "video-encoder",
++	.split_reg_banks = true,
++	.require_interconnects = true,
++	.bw_per_direction = true,
++};
++
+ static const struct freq_tbl msm8916_freq_table[] = {
+ 	{ 352800, 228570000 },	/* 1920x1088 @ 30 + 1280x720 @ 30 */
+ 	{ 244800, 160000000 },	/* 1920x1088 @ 30 */
+@@ -1206,6 +1289,7 @@ static const struct venus_resources qcm2290_res = {
+ };
+ 
+ static const struct of_device_id venus_dt_match[] = {
++	{ .compatible = "qcom,msm8226-venus", .data = &msm8226_res, },
+ 	{ .compatible = "qcom,msm8916-venus", .data = &msm8916_res, },
+ 	{ .compatible = "qcom,msm8996-venus", .data = &msm8996_res, },
+ 	{ .compatible = "qcom,msm8998-venus", .data = &msm8998_res, },
+diff --git a/drivers/media/platform/qcom/venus/core.h b/drivers/media/platform/qcom/venus/core.h
+index 497e8f502..d02f22587 100644
+--- a/drivers/media/platform/qcom/venus/core.h
++++ b/drivers/media/platform/qcom/venus/core.h
+@@ -106,6 +106,9 @@ struct venus_resources {
+ 	const char *enc_nodename;
+ 	const char *dec_nodename;
+ 	const struct firmware_version *min_fw;
++	bool split_reg_banks;
++	bool require_interconnects;
++	bool bw_per_direction;
+ };
+ 
+ enum venus_fmt {
+@@ -141,6 +144,7 @@ struct venus_format {
+  * @cpu_cs_base:	IO memory cpu_cs base address
+  * @cpu_ic_base:	IO memory cpu_ic base address
+  * @wrapper_base:	IO memory wrapper base address
++ * @wrapper_version:	Version register in the split wrapper layout
+  * @wrapper_tz_base:	IO memory wrapper TZ base address
+  * @aon_base:	AON base address
+  * @irq:		Venus irq
+@@ -196,6 +200,7 @@ struct venus_core {
+ 	void __iomem *cpu_cs_base;
+ 	void __iomem *cpu_ic_base;
+ 	void __iomem *wrapper_base;
++	void __iomem *wrapper_version;
+ 	void __iomem *wrapper_tz_base;
+ 	void __iomem *aon_base;
+ 	int irq;
+@@ -540,6 +545,18 @@ struct venus_inst {
+ #define IS_IRIS2(core)		((core)->res->vpu_version == VPU_VERSION_IRIS2)
+ #define IS_IRIS2_1(core)	((core)->res->vpu_version == VPU_VERSION_IRIS2_1)
+ 
++static inline void __iomem *venus_wrapper_addr(struct venus_core *core, u32 reg)
++{
++	if (core->wrapper_version) {
++		if (!reg)
++			return core->wrapper_version;
++		/* Offsets 0 and 4 are outside the bank starting at offset 8. */
++		reg -= 8;
++	}
++
++	return core->wrapper_base + reg;
++}
++
+ static inline bool is_lite(struct venus_core *core)
+ {
+ 	return IS_AR50_LITE(core);
+diff --git a/drivers/media/platform/qcom/venus/firmware.c b/drivers/media/platform/qcom/venus/firmware.c
+index af0ac40be..5fc516310 100644
+--- a/drivers/media/platform/qcom/venus/firmware.c
++++ b/drivers/media/platform/qcom/venus/firmware.c
+@@ -25,32 +25,33 @@
+ #define VENUS_FW_MEM_SIZE		(6 * SZ_1M)
+ #define VENUS_FW_START_ADDR		0x0
+ 
++static void __iomem *venus_fw_wrapper_addr(struct venus_core *core, u32 reg)
++{
++	if (IS_IRIS2(core) || IS_IRIS2_1(core))
++		return core->wrapper_tz_base + reg;
++	return venus_wrapper_addr(core, reg);
++}
++
+ static void venus_reset_cpu(struct venus_core *core)
+ {
+ 	u32 fw_size = core->fw.mapped_mem_size;
+-	void __iomem *wrapper_base;
+-
+-	if (IS_IRIS2(core) || IS_IRIS2_1(core))
+-		wrapper_base = core->wrapper_tz_base;
+-	else
+-		wrapper_base = core->wrapper_base;
+ 
+-	writel(0, wrapper_base + WRAPPER_FW_START_ADDR);
+-	writel(fw_size, wrapper_base + WRAPPER_FW_END_ADDR);
+-	writel(0, wrapper_base + WRAPPER_CPA_START_ADDR);
+-	writel(fw_size, wrapper_base + WRAPPER_CPA_END_ADDR);
+-	writel(fw_size, wrapper_base + WRAPPER_NONPIX_START_ADDR);
+-	writel(fw_size, wrapper_base + WRAPPER_NONPIX_END_ADDR);
++	writel(0, venus_fw_wrapper_addr(core, WRAPPER_FW_START_ADDR));
++	writel(fw_size, venus_fw_wrapper_addr(core, WRAPPER_FW_END_ADDR));
++	writel(0, venus_fw_wrapper_addr(core, WRAPPER_CPA_START_ADDR));
++	writel(fw_size, venus_fw_wrapper_addr(core, WRAPPER_CPA_END_ADDR));
++	writel(fw_size, venus_fw_wrapper_addr(core, WRAPPER_NONPIX_START_ADDR));
++	writel(fw_size, venus_fw_wrapper_addr(core, WRAPPER_NONPIX_END_ADDR));
+ 
+ 	if (IS_IRIS2(core) || IS_IRIS2_1(core)) {
+ 		/* Bring XTSS out of reset */
+-		writel(0, wrapper_base + WRAPPER_TZ_XTSS_SW_RESET);
++		writel(0, core->wrapper_tz_base + WRAPPER_TZ_XTSS_SW_RESET);
+ 	} else {
+-		writel(0x0, wrapper_base + WRAPPER_CPU_CGC_DIS);
+-		writel(0x0, wrapper_base + WRAPPER_CPU_CLOCK_CONFIG);
++		writel(0x0, venus_wrapper_addr(core, WRAPPER_CPU_CGC_DIS));
++		writel(0x0, venus_wrapper_addr(core, WRAPPER_CPU_CLOCK_CONFIG));
+ 
+ 		/* Bring ARM9 out of reset */
+-		writel(0, wrapper_base + WRAPPER_A9SS_SW_RESET);
++		writel(0, venus_wrapper_addr(core, WRAPPER_A9SS_SW_RESET));
+ 	}
+ }
+ 
+@@ -73,7 +74,7 @@ int venus_set_hw_state(struct venus_core *core, bool resume)
+ 			       core->wrapper_tz_base + WRAPPER_TZ_XTSS_SW_RESET);
+ 		else
+ 			writel(WRAPPER_A9SS_SW_RESET_BIT,
+-			       core->wrapper_base + WRAPPER_A9SS_SW_RESET);
++			       venus_wrapper_addr(core, WRAPPER_A9SS_SW_RESET));
+ 	}
+ 
+ 	return 0;
+@@ -178,7 +179,6 @@ static int venus_shutdown_no_tz(struct venus_core *core)
+ 	size_t unmapped;
+ 	u32 reg;
+ 	struct device *dev = core->fw.dev;
+-	void __iomem *wrapper_base = core->wrapper_base;
+ 	void __iomem *wrapper_tz_base = core->wrapper_tz_base;
+ 
+ 	if (IS_IRIS2(core) || IS_IRIS2_1(core)) {
+@@ -188,9 +188,9 @@ static int venus_shutdown_no_tz(struct venus_core *core)
+ 		writel(reg, wrapper_tz_base + WRAPPER_TZ_XTSS_SW_RESET);
+ 	} else {
+ 		/* Assert the reset to ARM9 */
+-		reg = readl(wrapper_base + WRAPPER_A9SS_SW_RESET);
++		reg = readl(venus_wrapper_addr(core, WRAPPER_A9SS_SW_RESET));
+ 		reg |= WRAPPER_A9SS_SW_RESET_BIT;
+-		writel(reg, wrapper_base + WRAPPER_A9SS_SW_RESET);
++		writel(reg, venus_wrapper_addr(core, WRAPPER_A9SS_SW_RESET));
+ 	}
+ 
+ 	iommu = core->fw.iommu_domain;
+diff --git a/drivers/media/platform/qcom/venus/hfi_venus.c b/drivers/media/platform/qcom/venus/hfi_venus.c
+index d3da35f67..b3a5b7d26 100644
+--- a/drivers/media/platform/qcom/venus/hfi_venus.c
++++ b/drivers/media/platform/qcom/venus/hfi_venus.c
+@@ -366,13 +366,24 @@ static void venus_free(struct venus_hfi_device *hdev, struct mem_desc *mem)
+ 
+ static void venus_set_registers(struct venus_hfi_device *hdev)
+ {
+-	const struct venus_resources *res = hdev->core->res;
++	struct venus_core *core = hdev->core;
++	const struct venus_resources *res = core->res;
+ 	const struct reg_val *tbl = res->reg_tbl;
+ 	unsigned int count = res->reg_tbl_size;
++	void __iomem *addr;
+ 	unsigned int i;
+-
+-	for (i = 0; i < count; i++)
+-		writel(tbl[i].value, hdev->core->base + tbl[i].reg);
++	u32 reg;
++
++	for (i = 0; i < count; i++) {
++		reg = tbl[i].reg;
++		if (!res->split_reg_banks)
++			addr = core->base + reg;
++		else if (reg >= WRAPPER_BASE)
++			addr = venus_wrapper_addr(core, reg - WRAPPER_BASE);
++		else
++			addr = core->vbif_base + (reg - VBIF_BASE);
++		writel(tbl[i].value, addr);
++	}
+ }
+ 
+ static void venus_soft_int(struct venus_hfi_device *hdev)
+@@ -470,18 +481,17 @@ static int venus_boot_core(struct venus_hfi_device *hdev)
+ 	u32 ctrl_status = 0, mask_val = 0;
+ 	unsigned int count = 0;
+ 	void __iomem *cpu_cs_base = hdev->core->cpu_cs_base;
+-	void __iomem *wrapper_base = hdev->core->wrapper_base;
+ 	int ret = 0;
+ 
+ 	if (IS_IRIS2(hdev->core) || IS_IRIS2_1(hdev->core)) {
+-		mask_val = readl(wrapper_base + WRAPPER_INTR_MASK);
++		mask_val = readl(venus_wrapper_addr(hdev->core, WRAPPER_INTR_MASK));
+ 		mask_val &= ~(WRAPPER_INTR_MASK_A2HWD_BASK_V6 |
+ 			      WRAPPER_INTR_MASK_A2HCPU_MASK);
+ 	} else {
+ 		mask_val = WRAPPER_INTR_MASK_A2HVCODEC_MASK;
+ 	}
+ 
+-	writel(mask_val, wrapper_base + WRAPPER_INTR_MASK);
++	writel(mask_val, venus_wrapper_addr(hdev->core, WRAPPER_INTR_MASK));
+ 	if (IS_V1(hdev->core))
+ 		writel(1, cpu_cs_base + CPU_CS_SCIACMDARG3);
+ 
+@@ -514,11 +524,10 @@ static int venus_boot_core(struct venus_hfi_device *hdev)
+ static u32 venus_hwversion(struct venus_hfi_device *hdev)
+ {
+ 	struct device *dev = hdev->core->dev;
+-	void __iomem *wrapper_base = hdev->core->wrapper_base;
+ 	u32 ver;
+ 	u32 major, minor, step;
+ 
+-	ver = readl(wrapper_base + WRAPPER_HW_VERSION);
++	ver = readl(venus_wrapper_addr(hdev->core, WRAPPER_HW_VERSION));
+ 	major = ver & WRAPPER_HW_VERSION_MAJOR_VERSION_MASK;
+ 	major = major >> WRAPPER_HW_VERSION_MAJOR_VERSION_SHIFT;
+ 	minor = ver & WRAPPER_HW_VERSION_MINOR_VERSION_MASK;
+@@ -562,22 +571,23 @@ static int venus_run(struct venus_hfi_device *hdev)
+ 
+ static int venus_halt_axi(struct venus_hfi_device *hdev)
+ {
+-	void __iomem *wrapper_base = hdev->core->wrapper_base;
+-	void __iomem *vbif_base = hdev->core->vbif_base;
+-	void __iomem *cpu_cs_base = hdev->core->cpu_cs_base;
+-	void __iomem *aon_base = hdev->core->aon_base;
+-	struct device *dev = hdev->core->dev;
++	struct venus_core *core = hdev->core;
++	void __iomem *vbif_base = core->vbif_base;
++	void __iomem *cpu_cs_base = core->cpu_cs_base;
++	void __iomem *aon_base = core->aon_base;
++	struct device *dev = core->dev;
++	void __iomem *control, *status;
+ 	u32 val;
+ 	u32 mask_val;
+ 	int ret;
+ 
+-	if (IS_AR50_LITE(hdev->core))
++	if (IS_AR50_LITE(core))
+ 		return 0;
+ 
+-	if (IS_IRIS2(hdev->core) || IS_IRIS2_1(hdev->core)) {
++	if (IS_IRIS2(core) || IS_IRIS2_1(core)) {
+ 		writel(0x3, cpu_cs_base + CPU_CS_X2RPMH_V6);
+ 
+-		if (IS_IRIS2_1(hdev->core))
++		if (IS_IRIS2_1(core))
+ 			goto skip_aon_mvp_noc;
+ 
+ 		writel(0x1, aon_base + AON_WRAPPER_MVP_NOC_LPI_CONTROL);
+@@ -591,10 +601,12 @@ static int venus_halt_axi(struct venus_hfi_device *hdev)
+ 
+ skip_aon_mvp_noc:
+ 		mask_val = (BIT(2) | BIT(1) | BIT(0));
+-		writel(mask_val, wrapper_base + WRAPPER_DEBUG_BRIDGE_LPI_CONTROL_V6);
++		control = venus_wrapper_addr(core, WRAPPER_DEBUG_BRIDGE_LPI_CONTROL_V6);
++		status = venus_wrapper_addr(core, WRAPPER_DEBUG_BRIDGE_LPI_STATUS_V6);
++		writel(mask_val, control);
+ 
+-		writel(0x00, wrapper_base + WRAPPER_DEBUG_BRIDGE_LPI_CONTROL_V6);
+-		ret = readl_poll_timeout(wrapper_base + WRAPPER_DEBUG_BRIDGE_LPI_STATUS_V6,
++		writel(0x00, control);
++		ret = readl_poll_timeout(status,
+ 					 val,
+ 					 val == 0,
+ 					 POLL_INTERVAL_US,
+@@ -607,12 +619,14 @@ static int venus_halt_axi(struct venus_hfi_device *hdev)
+ 		return 0;
+ 	}
+ 
+-	if (IS_V4(hdev->core)) {
+-		val = readl(wrapper_base + WRAPPER_CPU_AXI_HALT);
++	if (IS_V4(core)) {
++		control = venus_wrapper_addr(core, WRAPPER_CPU_AXI_HALT);
++		status = venus_wrapper_addr(core, WRAPPER_CPU_AXI_HALT_STATUS);
++		val = readl(control);
+ 		val |= WRAPPER_CPU_AXI_HALT_HALT;
+-		writel(val, wrapper_base + WRAPPER_CPU_AXI_HALT);
++		writel(val, control);
+ 
+-		ret = readl_poll_timeout(wrapper_base + WRAPPER_CPU_AXI_HALT_STATUS,
++		ret = readl_poll_timeout(status,
+ 					 val,
+ 					 val & WRAPPER_CPU_AXI_HALT_STATUS_IDLE,
+ 					 POLL_INTERVAL_US,
+@@ -1134,15 +1148,13 @@ static irqreturn_t venus_isr(struct venus_core *core)
+ 	struct venus_hfi_device *hdev = to_hfi_priv(core);
+ 	u32 status;
+ 	void __iomem *cpu_cs_base;
+-	void __iomem *wrapper_base;
+ 
+ 	if (!hdev)
+ 		return IRQ_NONE;
+ 
+ 	cpu_cs_base = hdev->core->cpu_cs_base;
+-	wrapper_base = hdev->core->wrapper_base;
+ 
+-	status = readl(wrapper_base + WRAPPER_INTR_STATUS);
++	status = readl(venus_wrapper_addr(hdev->core, WRAPPER_INTR_STATUS));
+ 
+ 	if (IS_AR50_LITE(core)) {
+ 		if (status & WRAPPER_INTR_STATUS_A2H_MASK ||
+@@ -1162,7 +1174,7 @@ static irqreturn_t venus_isr(struct venus_core *core)
+ 	}
+ 	writel(1, cpu_cs_base + CPU_CS_A2HSOFTINTCLR);
+ 	if (!(IS_IRIS2(core) || IS_IRIS2_1(core) || IS_AR50_LITE(core)))
+-		writel(status, wrapper_base + WRAPPER_INTR_CLEAR);
++		writel(status, venus_wrapper_addr(hdev->core, WRAPPER_INTR_CLEAR));
+ 
+ 	return IRQ_WAKE_THREAD;
+ }
+@@ -1541,7 +1553,6 @@ static int venus_suspend_1xx(struct venus_core *core)
+ 
+ static bool venus_cpu_and_video_core_idle(struct venus_hfi_device *hdev)
+ {
+-	void __iomem *wrapper_base = hdev->core->wrapper_base;
+ 	void __iomem *wrapper_tz_base = hdev->core->wrapper_tz_base;
+ 	void __iomem *cpu_cs_base = hdev->core->cpu_cs_base;
+ 	u32 ctrl_status, cpu_status;
+@@ -1549,7 +1560,7 @@ static bool venus_cpu_and_video_core_idle(struct venus_hfi_device *hdev)
+ 	if (IS_IRIS2(hdev->core) || IS_IRIS2_1(hdev->core) || IS_AR50_LITE(hdev->core))
+ 		cpu_status = readl(wrapper_tz_base + WRAPPER_TZ_CPU_STATUS_V6);
+ 	else
+-		cpu_status = readl(wrapper_base + WRAPPER_CPU_STATUS);
++		cpu_status = readl(venus_wrapper_addr(hdev->core, WRAPPER_CPU_STATUS));
+ 	ctrl_status = readl(cpu_cs_base + CPU_CS_SCIACMDARG0);
+ 
+ 	if (cpu_status & WRAPPER_CPU_STATUS_WFI &&
+@@ -1561,7 +1572,6 @@ static bool venus_cpu_and_video_core_idle(struct venus_hfi_device *hdev)
+ 
+ static bool venus_cpu_idle_and_pc_ready(struct venus_hfi_device *hdev)
+ {
+-	void __iomem *wrapper_base = hdev->core->wrapper_base;
+ 	void __iomem *wrapper_tz_base = hdev->core->wrapper_tz_base;
+ 	void __iomem *cpu_cs_base = hdev->core->cpu_cs_base;
+ 	u32 ctrl_status, cpu_status;
+@@ -1569,7 +1579,7 @@ static bool venus_cpu_idle_and_pc_ready(struct venus_hfi_device *hdev)
+ 	if (IS_IRIS2(hdev->core) || IS_IRIS2_1(hdev->core) || IS_AR50_LITE(hdev->core))
+ 		cpu_status = readl(wrapper_tz_base + WRAPPER_TZ_CPU_STATUS_V6);
+ 	else
+-		cpu_status = readl(wrapper_base + WRAPPER_CPU_STATUS);
++		cpu_status = readl(venus_wrapper_addr(hdev->core, WRAPPER_CPU_STATUS));
+ 	ctrl_status = readl(cpu_cs_base + CPU_CS_SCIACMDARG0);
+ 
+ 	if (cpu_status & WRAPPER_CPU_STATUS_WFI &&
+diff --git a/drivers/media/platform/qcom/venus/pm_helpers.c b/drivers/media/platform/qcom/venus/pm_helpers.c
+index a60af81c1..70e88cc4e 100644
+--- a/drivers/media/platform/qcom/venus/pm_helpers.c
++++ b/drivers/media/platform/qcom/venus/pm_helpers.c
+@@ -179,9 +179,9 @@ static u32 load_per_type(struct venus_core *core, u32 session_type)
+ 	return mbs_per_sec;
+ }
+ 
+-static void mbs_to_bw(struct venus_inst *inst, u32 mbs, u32 *avg, u32 *peak)
++static void mbs_to_bw(const struct venus_resources *res, u32 direction,
++		      bool ten_bit, u32 mbs, u32 *avg, u32 *peak)
+ {
+-	const struct venus_resources *res = inst->core->res;
+ 	const struct bw_tbl *bw_tbl;
+ 	unsigned int num_rows, i;
+ 
+@@ -191,10 +191,10 @@ static void mbs_to_bw(struct venus_inst *inst, u32 mbs, u32 *avg, u32 *peak)
+ 	if (mbs == 0)
+ 		return;
+ 
+-	if (inst->session_type == VIDC_SESSION_TYPE_ENC) {
++	if (direction == VIDC_SESSION_TYPE_ENC) {
+ 		num_rows = res->bw_tbl_enc_size;
+ 		bw_tbl = res->bw_tbl_enc;
+-	} else if (inst->session_type == VIDC_SESSION_TYPE_DEC) {
++	} else if (direction == VIDC_SESSION_TYPE_DEC) {
+ 		num_rows = res->bw_tbl_dec_size;
+ 		bw_tbl = res->bw_tbl_dec;
+ 	} else {
+@@ -208,7 +208,7 @@ static void mbs_to_bw(struct venus_inst *inst, u32 mbs, u32 *avg, u32 *peak)
+ 		if (i != 0 && mbs > bw_tbl[i].mbs_per_sec)
+ 			break;
+ 
+-		if (inst->dpb_fmt & HFI_COLOR_FORMAT_10_BIT_BASE) {
++		if (ten_bit) {
+ 			*avg = bw_tbl[i].avg_10bit;
+ 			*peak = bw_tbl[i].peak_10bit;
+ 		} else {
+@@ -220,14 +220,26 @@ static void mbs_to_bw(struct venus_inst *inst, u32 mbs, u32 *avg, u32 *peak)
+ 
+ static int load_scale_bw(struct venus_core *core)
+ {
++	const struct venus_resources *res = core->res;
+ 	struct venus_inst *inst = NULL;
+ 	u32 mbs_per_sec, avg, peak, total_avg = 0, total_peak = 0;
+ 
+-	list_for_each_entry(inst, &core->instances, list) {
+-		mbs_per_sec = load_per_instance(inst);
+-		mbs_to_bw(inst, mbs_per_sec, &avg, &peak);
++	if (res->bw_per_direction) {
++		mbs_per_sec = load_per_type(core, VIDC_SESSION_TYPE_ENC);
++		mbs_to_bw(res, VIDC_SESSION_TYPE_ENC, false, mbs_per_sec, &total_avg, &total_peak);
++		mbs_per_sec = load_per_type(core, VIDC_SESSION_TYPE_DEC);
++		mbs_to_bw(res, VIDC_SESSION_TYPE_DEC, false, mbs_per_sec, &avg, &peak);
+ 		total_avg += avg;
+-		total_peak += peak;
++		total_peak = max(total_peak, peak);
++	} else {
++		list_for_each_entry(inst, &core->instances, list) {
++			bool ten_bit = inst->dpb_fmt & HFI_COLOR_FORMAT_10_BIT_BASE;
++
++			mbs_per_sec = load_per_instance(inst);
++			mbs_to_bw(res, inst->session_type, ten_bit, mbs_per_sec, &avg, &peak);
++			total_avg += avg;
++			total_peak += peak;
++		}
+ 	}
+ 
+ 	/*
+@@ -341,9 +353,9 @@ vcodec_control_v3(struct venus_core *core, u32 session_type, bool enable)
+ 	void __iomem *ctrl;
+ 
+ 	if (session_type == VIDC_SESSION_TYPE_DEC)
+-		ctrl = core->wrapper_base + WRAPPER_VDEC_VCODEC_POWER_CONTROL;
++		ctrl = venus_wrapper_addr(core, WRAPPER_VDEC_VCODEC_POWER_CONTROL);
+ 	else
+-		ctrl = core->wrapper_base + WRAPPER_VENC_VCODEC_POWER_CONTROL;
++		ctrl = venus_wrapper_addr(core, WRAPPER_VENC_VCODEC_POWER_CONTROL);
+ 
+ 	if (enable)
+ 		writel(0, ctrl);
+@@ -429,11 +441,11 @@ static int vcodec_control_v4(struct venus_core *core, u32 coreid, bool enable)
+ 
+ legacy:
+ 	if (coreid == VIDC_CORE_ID_1) {
+-		ctrl = core->wrapper_base + WRAPPER_VCODEC0_MMCC_POWER_CONTROL;
+-		stat = core->wrapper_base + WRAPPER_VCODEC0_MMCC_POWER_STATUS;
++		ctrl = venus_wrapper_addr(core, WRAPPER_VCODEC0_MMCC_POWER_CONTROL);
++		stat = venus_wrapper_addr(core, WRAPPER_VCODEC0_MMCC_POWER_STATUS);
+ 	} else {
+-		ctrl = core->wrapper_base + WRAPPER_VCODEC1_MMCC_POWER_CONTROL;
+-		stat = core->wrapper_base + WRAPPER_VCODEC1_MMCC_POWER_STATUS;
++		ctrl = venus_wrapper_addr(core, WRAPPER_VCODEC1_MMCC_POWER_CONTROL);
++		stat = venus_wrapper_addr(core, WRAPPER_VCODEC1_MMCC_POWER_STATUS);
+ 	}
+ 
+ 	if (enable) {

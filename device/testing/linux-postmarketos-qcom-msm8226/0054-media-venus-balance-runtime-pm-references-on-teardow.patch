@@ -1,0 +1,100 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Timothy Schmidt <timschmidt@gmail.com>
+Date: Wed, 18 Nov 2026 11:36:02 -0500
+Subject: [PATCH 16/22] media: venus: Balance runtime PM references on teardown
+
+A failed pm_runtime_resume_and_get() restores the usage count itself.
+Preserve close and session cleanup, and release a reference only when
+the corresponding get succeeded.
+
+(cherry picked from commit 695cbfa3fa491cc7c0bb02c0f23235386f128e54)
+---
+ drivers/media/platform/qcom/venus/vdec.c | 13 ++++++++-----
+ drivers/media/platform/qcom/venus/venc.c | 13 ++++++++-----
+ 2 files changed, 16 insertions(+), 10 deletions(-)
+
+diff --git a/drivers/media/platform/qcom/venus/vdec.c b/drivers/media/platform/qcom/venus/vdec.c
+index 27cb02442..222f4b948 100644
+--- a/drivers/media/platform/qcom/venus/vdec.c
++++ b/drivers/media/platform/qcom/venus/vdec.c
+@@ -1311,9 +1311,9 @@ static void vdec_stop_streaming(struct vb2_queue *q)
+ static void vdec_session_release(struct venus_inst *inst)
+ {
+ 	struct venus_core *core = inst->core;
+-	int ret, abort = 0;
++	int pm_ret, ret, abort = 0;
+ 
+-	vdec_pm_get(inst);
++	pm_ret = vdec_pm_get(inst);
+ 
+ 	mutex_lock(&inst->lock);
+ 	inst->codec_state = VENUS_DEC_STATE_DEINIT;
+@@ -1341,7 +1341,8 @@ static void vdec_session_release(struct venus_inst *inst)
+ 	mutex_unlock(&inst->lock);
+ 
+ 	venus_pm_release_core(inst);
+-	vdec_pm_put(inst, false);
++	if (!pm_ret)
++		vdec_pm_put(inst, false);
+ }
+ 
+ static int vdec_buf_init(struct vb2_buffer *vb)
+@@ -1757,12 +1758,14 @@ static int vdec_open(struct file *file)
+ static int vdec_close(struct file *file)
+ {
+ 	struct venus_inst *inst = to_inst(file);
++	int pm_ret;
+ 
+-	vdec_pm_get(inst);
++	pm_ret = vdec_pm_get(inst);
+ 	cancel_work_sync(&inst->delayed_process_work);
+ 	venus_close_common(inst, file);
+ 	ida_destroy(&inst->dpb_ids);
+-	vdec_pm_put(inst, false);
++	if (!pm_ret)
++		vdec_pm_put(inst, false);
+ 
+ 	kfree(inst);
+ 	return 0;
+diff --git a/drivers/media/platform/qcom/venus/venc.c b/drivers/media/platform/qcom/venus/venc.c
+index fba07557a..0d291eb6c 100644
+--- a/drivers/media/platform/qcom/venus/venc.c
++++ b/drivers/media/platform/qcom/venus/venc.c
+@@ -1180,9 +1180,9 @@ static int venc_buf_init(struct vb2_buffer *vb)
+ 
+ static void venc_release_session(struct venus_inst *inst)
+ {
+-	int ret;
++	int pm_ret, ret;
+ 
+-	venc_pm_get(inst);
++	pm_ret = venc_pm_get(inst);
+ 
+ 	mutex_lock(&inst->lock);
+ 
+@@ -1196,7 +1196,8 @@ static void venc_release_session(struct venus_inst *inst)
+ 	INIT_LIST_HEAD(&inst->registeredbufs);
+ 	venus_pm_release_core(inst);
+ 
+-	venc_pm_put(inst, false);
++	if (!pm_ret)
++		venc_pm_put(inst, false);
+ }
+ 
+ static void venc_buf_cleanup(struct vb2_buffer *vb)
+@@ -1534,11 +1535,13 @@ static int venc_open(struct file *file)
+ static int venc_close(struct file *file)
+ {
+ 	struct venus_inst *inst = to_inst(file);
++	int pm_ret;
+ 
+-	venc_pm_get(inst);
++	pm_ret = venc_pm_get(inst);
+ 	venus_close_common(inst, file);
+ 	inst->enc_state = VENUS_ENC_STATE_DEINIT;
+-	venc_pm_put(inst, false);
++	if (!pm_ret)
++		venc_pm_put(inst, false);
+ 
+ 	kfree(inst);
+ 	return 0;

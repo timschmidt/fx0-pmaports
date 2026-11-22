@@ -1,0 +1,71 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Timothy Schmidt <timschmidt@gmail.com>
+Date: Wed, 18 Nov 2026 12:40:47 -0500
+Subject: [PATCH 18/22] media: venus: Restrict the H.264 8x8 control to HFI 4xx
+ and 6xx
+
+HFI 1xx and 3xx reject the 8x8 transform packet, including when the
+control value is zero. Advertise and send the control only on HFI 4xx
+and 6xx, where the packetizer supports it.
+
+(cherry picked from commit b8f493f9bfe67684f108a9ca5d7764a97834c521)
+---
+ drivers/media/platform/qcom/venus/venc.c      | 20 ++++++++++---------
+ .../media/platform/qcom/venus/venc_ctrls.c    |  5 +++--
+ 2 files changed, 14 insertions(+), 11 deletions(-)
+
+diff --git a/drivers/media/platform/qcom/venus/venc.c b/drivers/media/platform/qcom/venus/venc.c
+index 0d291eb6c..0f55bd019 100644
+--- a/drivers/media/platform/qcom/venus/venc.c
++++ b/drivers/media/platform/qcom/venus/venc.c
+@@ -690,7 +690,6 @@ static int venc_set_properties(struct venus_inst *inst)
+ 		struct hfi_h264_vui_timing_info info;
+ 		struct hfi_h264_entropy_control entropy;
+ 		struct hfi_h264_db_control deblock;
+-		struct hfi_h264_8x8_transform h264_transform;
+ 
+ 		ptype = HFI_PROPERTY_PARAM_VENC_H264_VUI_TIMING_INFO;
+ 		info.enable = 1;
+@@ -722,15 +721,18 @@ static int venc_set_properties(struct venus_inst *inst)
+ 		if (ret)
+ 			return ret;
+ 
+-		ptype = HFI_PROPERTY_PARAM_VENC_H264_TRANSFORM_8X8;
+-		h264_transform.enable_type = 0;
+-		if (ctr->profile.h264 == V4L2_MPEG_VIDEO_H264_PROFILE_HIGH ||
+-		    ctr->profile.h264 == V4L2_MPEG_VIDEO_H264_PROFILE_CONSTRAINED_HIGH)
+-			h264_transform.enable_type = ctr->h264_8x8_transform;
++		if (IS_V4(inst->core) || IS_V6(inst->core)) {
++			struct hfi_h264_8x8_transform h264_transform = {};
+ 
+-		ret = hfi_session_set_property(inst, ptype, &h264_transform);
+-		if (ret)
+-			return ret;
++			ptype = HFI_PROPERTY_PARAM_VENC_H264_TRANSFORM_8X8;
++			if (ctr->profile.h264 == V4L2_MPEG_VIDEO_H264_PROFILE_HIGH ||
++			    ctr->profile.h264 == V4L2_MPEG_VIDEO_H264_PROFILE_CONSTRAINED_HIGH)
++				h264_transform.enable_type = ctr->h264_8x8_transform;
++
++			ret = hfi_session_set_property(inst, ptype, &h264_transform);
++			if (ret)
++				return ret;
++		}
+ 
+ 		if (ctr->layer_bitrate) {
+ 			unsigned int i;
+diff --git a/drivers/media/platform/qcom/venus/venc_ctrls.c b/drivers/media/platform/qcom/venus/venc_ctrls.c
+index 4d36c44f9..433fc688d 100644
+--- a/drivers/media/platform/qcom/venus/venc_ctrls.c
++++ b/drivers/media/platform/qcom/venus/venc_ctrls.c
+@@ -542,8 +542,9 @@ int venc_ctrl_init(struct venus_inst *inst)
+ 	v4l2_ctrl_new_std(&inst->ctrl_handler, &venc_ctrl_ops,
+ 			  V4L2_CID_MPEG_VIDEO_H264_I_FRAME_MIN_QP, 1, 51, 1, 1);
+ 
+-	v4l2_ctrl_new_std(&inst->ctrl_handler, &venc_ctrl_ops,
+-			  V4L2_CID_MPEG_VIDEO_H264_8X8_TRANSFORM, 0, 1, 1, 1);
++	if (IS_V4(inst->core) || IS_V6(inst->core))
++		v4l2_ctrl_new_std(&inst->ctrl_handler, &venc_ctrl_ops,
++				  V4L2_CID_MPEG_VIDEO_H264_8X8_TRANSFORM, 0, 1, 1, 1);
+ 
+ 	v4l2_ctrl_new_std(&inst->ctrl_handler, &venc_ctrl_ops,
+ 			  V4L2_CID_MPEG_VIDEO_H264_P_FRAME_MIN_QP, 1, 51, 1, 1);

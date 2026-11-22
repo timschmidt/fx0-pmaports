@@ -1,0 +1,53 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Timothy Schmidt <timschmidt@gmail.com>
+Date: Wed, 18 Nov 2026 13:46:59 -0500
+Subject: [PATCH 21/22] ARM: dts: qcom: Enable the Venus route in the separate
+ Madai variant
+
+Enable the two interconnect providers, IOMMU and codec in the Venus
+variant. Keep the ordinary Madai DTB selectable for recovery and for
+installations that have yet to supply the MSM8226 firmware.
+---
+ arch/arm/boot/dts/qcom/qcom-msm8926-lg-madai-venus.dts | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/arch/arm/boot/dts/qcom/qcom-msm8926-lg-madai-venus.dts b/arch/arm/boot/dts/qcom/qcom-msm8926-lg-madai-venus.dts
+index 115460f9e..5e7bc2187 100644
+--- a/arch/arm/boot/dts/qcom/qcom-msm8926-lg-madai-venus.dts
++++ b/arch/arm/boot/dts/qcom/qcom-msm8926-lg-madai-venus.dts
+@@ -14,7 +14,7 @@ bimc: interconnect@fc380000 {
+ 		compatible = "qcom,msm8226-bimc";
+ 		reg = <0xfc380000 0x6a000>;
+ 		#interconnect-cells = <1>;
+-		status = "disabled";
++		status = "okay";
+ 	};
+ 
+ 	mmss_noc: interconnect@fc478000 {
+@@ -23,7 +23,7 @@ mmss_noc: interconnect@fc478000 {
+ 		#interconnect-cells = <1>;
+ 		clocks = <&mmcc MMSS_AXI_CLK_SRC>, <&mmcc MMSS_S0_AXI_CLK>;
+ 		clock-names = "bus", "iface";
+-		status = "disabled";
++		status = "okay";
+ 	};
+ 
+ 	venus_iommu: iommu@fdc84000 {
+@@ -41,7 +41,7 @@ venus_iommu: iommu@fdc84000 {
+ 		clock-names = "iface", "bus", "tbu";
+ 		power-domains = <&mmcc VENUS0_GDSC>;
+ 		qcom,iommu-secure-id = <0>;
+-		status = "disabled";
++		status = "okay";
+ 
+ 		/* Content-protection and firmware contexts belong to secure world. */
+ 		iommu-ctx@0 {
+@@ -76,7 +76,7 @@ video-codec@fdc80000 {
+ 			interconnects = <&mmss_noc MSM8226_MMSS_MASTER_VIDEO_P0
+ 					 &bimc MSM8226_BIMC_SLAVE_EBI_CH0>;
+ 			interconnect-names = "video-mem";
+-			status = "disabled";
++			status = "okay";
+ 		};
+ 	};
+ };

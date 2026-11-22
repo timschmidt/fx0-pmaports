@@ -1,0 +1,162 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Codex <codex@openai.com>
+Date: Tue, 17 Nov 2026 22:55:36 -0500
+Subject: [PATCH 01/22] media: venus: require a bounded legacy ARM32 DMA
+ aperture
+
+Allow normal Qualcomm ARM32 Venus module construction when the legacy IOMMU DMA mapper is configured. Admit probe only when the active allocator and attached domain keep the entire aperture outside the lower reserved range and within the device and bus limits. Keep the generic DMA reservation path for existing ARM64 platforms.
+---
+ arch/arm/include/asm/dma-iommu.h          |  2 ++
+ arch/arm/mm/dma-mapping.c                 | 30 +++++++++++++++++++++
+ drivers/media/platform/qcom/venus/Kconfig |  2 +-
+ drivers/media/platform/qcom/venus/core.c  | 33 ++++++++++++++++++-----
+ 4 files changed, 60 insertions(+), 7 deletions(-)
+
+diff --git a/arch/arm/include/asm/dma-iommu.h b/arch/arm/include/asm/dma-iommu.h
+index 2ce4c5683..d571da6c9 100644
+--- a/arch/arm/include/asm/dma-iommu.h
++++ b/arch/arm/include/asm/dma-iommu.h
+@@ -32,5 +32,7 @@ int arm_iommu_attach_device(struct device *dev,
+ 					struct dma_iommu_mapping *mapping);
+ void arm_iommu_detach_device(struct device *dev);
+ 
++bool arm_iommu_dma_aperture_within(struct device *dev, u64 start, u64 end);
++
+ #endif /* __KERNEL__ */
+ #endif
+diff --git a/arch/arm/mm/dma-mapping.c b/arch/arm/mm/dma-mapping.c
+index 08641a936..2a28b33c6 100644
+--- a/arch/arm/mm/dma-mapping.c
++++ b/arch/arm/mm/dma-mapping.c
+@@ -1530,6 +1530,36 @@ static const struct dma_map_ops iommu_ops = {
+ 	.unmap_resource		= arm_iommu_unmap_resource,
+ };
+ 
++/**
++ * arm_iommu_dma_aperture_within - Check the configured legacy DMA aperture
++ * @dev: device whose driver owns the configured DMA mapping
++ * @start: first permitted DMA address
++ * @end: exclusive upper bound of the permitted DMA addresses
++ *
++ * Check the whole allocator, including bitmap extensions that have yet to be
++ * allocated. An IOMMU firmware description alone does not establish a mapping.
++ *
++ * Return: true when the active legacy IOMMU allocator can only allocate within
++ * the requested interval.
++ */
++bool arm_iommu_dma_aperture_within(struct device *dev, u64 start, u64 end)
++{
++	struct dma_iommu_mapping *mapping = to_dma_iommu_mapping(dev);
++	u64 size;
++
++	if (!mapping || get_dma_ops(dev) != &iommu_ops ||
++	    !mapping->domain || iommu_get_domain_for_dev(dev) != mapping->domain)
++		return false;
++
++	if (end > DMA_BIT_MASK(32) + 1 || start >= end ||
++	    mapping->base < start || mapping->base >= end)
++		return false;
++
++	size = (u64)mapping->bits * mapping->extensions << PAGE_SHIFT;
++	return size && size <= end - mapping->base;
++}
++EXPORT_SYMBOL_GPL(arm_iommu_dma_aperture_within);
++
+ /**
+  * arm_iommu_create_mapping
+  * @dev: pointer to the client device (for IOMMU calls)
+diff --git a/drivers/media/platform/qcom/venus/Kconfig b/drivers/media/platform/qcom/venus/Kconfig
+index 63ee8c78d..f2a5c75d2 100644
+--- a/drivers/media/platform/qcom/venus/Kconfig
++++ b/drivers/media/platform/qcom/venus/Kconfig
+@@ -2,7 +2,7 @@ config VIDEO_QCOM_VENUS
+ 	tristate "Qualcomm Venus V4L2 encoder/decoder driver"
+ 	depends on V4L_MEM2MEM_DRIVERS
+ 	depends on VIDEO_DEV && QCOM_SMEM
+-	depends on (ARCH_QCOM && ARM64 && IOMMU_API) || COMPILE_TEST
++	depends on (ARCH_QCOM && IOMMU_API && (ARM64 || ARM_DMA_USE_IOMMU)) || COMPILE_TEST
+ 	select OF_DYNAMIC if ARCH_QCOM
+ 	select QCOM_MDT_LOADER
+ 	select QCOM_SCM
+diff --git a/drivers/media/platform/qcom/venus/core.c b/drivers/media/platform/qcom/venus/core.c
+index 236934a00..7246e1fc1 100644
+--- a/drivers/media/platform/qcom/venus/core.c
++++ b/drivers/media/platform/qcom/venus/core.c
+@@ -23,6 +23,10 @@
+ #include <media/v4l2-mem2mem.h>
+ #include <media/v4l2-ioctl.h>
+ 
++#ifdef CONFIG_ARM_DMA_USE_IOMMU
++#include <asm/dma-iommu.h>
++#endif
++
+ #include "core.h"
+ #include "firmware.h"
+ #include "pm_helpers.h"
+@@ -378,19 +382,36 @@ static void venus_unreserve_iova_region(struct device *dev, struct dma_iova_stat
+ {
+ 	unsigned int i;
+ 
++	if (!state)
++		return;
++
+ 	for (i = 0; dma_iova_size(&state[i]); i++)
+ 		dma_iova_free(dev, &state[i]);
+ }
+ 
+-static int venus_reserve_iova_region(struct device *dev, struct dma_iova_state **iova_state,
+-				     unsigned long start, unsigned long size)
++static int venus_reserve_iova_region(struct venus_core *core)
+ {
++	struct device *dev = core->dev;
++	unsigned long start = VENUS_NP_RESERVE_IOVA_START;
++	unsigned long size = VENUS_NP_RESERVE_IOVA_SIZE;
++#ifdef CONFIG_ARM_DMA_USE_IOMMU
++	u64 limit = min_t(u64, core->res->dma_mask, DMA_BIT_MASK(32));
++
++	if (dev->bus_dma_limit)
++		limit = min(limit, dev->bus_dma_limit);
++
++	/* The legacy allocator has no dynamic IOVA reservation interface. */
++	if (!arm_iommu_dma_aperture_within(dev, start + size, limit + 1))
++		return dev_err_probe(dev, -EOPNOTSUPP,
++				     "legacy DMA aperture includes reserved or unreachable addresses\n");
++
++	return 0;
++#else
+ 	unsigned long dma_limit = dev->bus_dma_limit;
+ 	unsigned long end, rem, chunk;
+ 	struct dma_iova_state *state;
+ 	unsigned int count = 0;
+ 	int ret = -ENOMEM;
+-
+ 	state = devm_kcalloc(dev, BITS_PER_TYPE(dma_addr_t) + 1, sizeof(*state), GFP_KERNEL);
+ 	if (!state)
+ 		return ret;
+@@ -413,7 +434,7 @@ static int venus_reserve_iova_region(struct device *dev, struct dma_iova_state *
+ 		count++;
+ 	}
+ 
+-	*iova_state = state;
++	core->iova_state = state;
+ 	dev->bus_dma_limit = dma_limit;
+ 
+ 	return 0;
+@@ -423,6 +444,7 @@ static int venus_reserve_iova_region(struct device *dev, struct dma_iova_state *
+ 	dev->bus_dma_limit = dma_limit;
+ 
+ 	return ret;
++#endif
+ }
+ 
+ static int venus_probe(struct platform_device *pdev)
+@@ -469,8 +491,7 @@ static int venus_probe(struct platform_device *pdev)
+ 			return ret;
+ 	}
+ 
+-	ret = venus_reserve_iova_region(dev, &core->iova_state, VENUS_NP_RESERVE_IOVA_START,
+-					VENUS_NP_RESERVE_IOVA_SIZE);
++	ret = venus_reserve_iova_region(core);
+ 	if (ret)
+ 		goto err_core_put;
+ 

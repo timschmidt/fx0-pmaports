@@ -1,0 +1,50 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Timothy Schmidt <timschmidt@gmail.com>
+Date: Wed, 18 Nov 2026 12:48:55 -0500
+Subject: [PATCH 19/22] media: venus: Keep MSM8226 H.264 headers joined
+
+The MSM8226 encoder path does not fetch a separate sequence header.
+Advertise only the joined header mode for this compatible. Preserve
+both modes for the other Venus devices.
+
+(cherry picked from commit 10ed483a6c663d920ad50a113efd86ab03a8df38)
+---
+ drivers/media/platform/qcom/venus/venc_ctrls.c | 9 ++++++---
+ 1 file changed, 6 insertions(+), 3 deletions(-)
+
+diff --git a/drivers/media/platform/qcom/venus/venc_ctrls.c b/drivers/media/platform/qcom/venus/venc_ctrls.c
+index 433fc688d..e38e399d8 100644
+--- a/drivers/media/platform/qcom/venus/venc_ctrls.c
++++ b/drivers/media/platform/qcom/venus/venc_ctrls.c
+@@ -3,6 +3,7 @@
+  * Copyright (c) 2012-2016, The Linux Foundation. All rights reserved.
+  * Copyright (C) 2017 Linaro Ltd.
+  */
++#include <linux/of.h>
+ #include <linux/types.h>
+ #include <media/v4l2-ctrls.h>
+ 
+@@ -429,6 +430,7 @@ static const struct v4l2_ctrl_ops venc_ctrl_ops = {
+ 
+ int venc_ctrl_init(struct venus_inst *inst)
+ {
++	u64 header_modes = BIT_ULL(V4L2_MPEG_VIDEO_HEADER_MODE_JOINED_WITH_1ST_FRAME);
+ 	int ret;
+ 	struct v4l2_ctrl_hdr10_mastering_display p_hdr10_mastering = {
+ 		{ 34000, 13250, 7500 },
+@@ -499,11 +501,12 @@ int venc_ctrl_init(struct venus_inst *inst)
+ 		AT_SLICE_BOUNDARY,
+ 		0, V4L2_MPEG_VIDEO_H264_LOOP_FILTER_MODE_DISABLED);
+ 
++	/* The driver has no separate sequence-header fetch for MSM8226. */
++	if (!of_device_is_compatible(inst->core->dev->of_node, "qcom,msm8226-venus"))
++		header_modes |= BIT_ULL(V4L2_MPEG_VIDEO_HEADER_MODE_SEPARATE);
+ 	v4l2_ctrl_new_std_menu(&inst->ctrl_handler, &venc_ctrl_ops,
+ 		V4L2_CID_MPEG_VIDEO_HEADER_MODE,
+-		V4L2_MPEG_VIDEO_HEADER_MODE_JOINED_WITH_1ST_FRAME,
+-		~((1 << V4L2_MPEG_VIDEO_HEADER_MODE_SEPARATE) |
+-		(1 << V4L2_MPEG_VIDEO_HEADER_MODE_JOINED_WITH_1ST_FRAME)),
++		V4L2_MPEG_VIDEO_HEADER_MODE_JOINED_WITH_1ST_FRAME, ~header_modes,
+ 		V4L2_MPEG_VIDEO_HEADER_MODE_JOINED_WITH_1ST_FRAME);
+ 
+ 	v4l2_ctrl_new_std_menu(&inst->ctrl_handler, &venc_ctrl_ops,

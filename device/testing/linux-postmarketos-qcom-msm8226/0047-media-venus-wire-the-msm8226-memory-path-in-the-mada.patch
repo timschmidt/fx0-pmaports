@@ -1,0 +1,102 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Timothy Schmidt <timschmidt@gmail.com>
+Date: Tue, 17 Nov 2026 23:31:48 -0500
+Subject: [PATCH 09/22] media: venus: Wire the MSM8226 memory path in the Madai
+ preview
+
+Require the stock video memory route. The CPU accesses registers with the Venus interface clocks as in the stock MSM8226 driver. Keep both fabrics, the IOMMU and codec disabled while shared clock ownership and device operation are qualified.
+
+Link: https://github.com/peremen/android-kernel-lg-madai/blob/03aba4427a7666d57b5ae06d375e259ea337f351/drivers/media/platform/msm/vidc/msm_vidc_res_parse.c
+Signed-off-by: Timothy Schmidt <timschmidt@gmail.com>
+---
+ .../dts/qcom/qcom-msm8926-lg-madai-venus.dts  | 20 +++++++++++++++++++
+ drivers/media/platform/qcom/venus/core.c      |  7 +++----
+ drivers/media/platform/qcom/venus/core.h      |  2 +-
+ 3 files changed, 24 insertions(+), 5 deletions(-)
+
+diff --git a/arch/arm/boot/dts/qcom/qcom-msm8926-lg-madai-venus.dts b/arch/arm/boot/dts/qcom/qcom-msm8926-lg-madai-venus.dts
+index 34f7ef2b0..115460f9e 100644
+--- a/arch/arm/boot/dts/qcom/qcom-msm8926-lg-madai-venus.dts
++++ b/arch/arm/boot/dts/qcom/qcom-msm8926-lg-madai-venus.dts
+@@ -1,5 +1,6 @@
+ // SPDX-License-Identifier: GPL-2.0-only
+ #include "qcom-msm8926-lg-madai.dts"
++#include <dt-bindings/interconnect/qcom,msm8226.h>
+ 
+ &{/reserved-memory} {
+ 	venus_mem: memory@f500000 {
+@@ -9,6 +10,22 @@ venus_mem: memory@f500000 {
+ };
+ 
+ &soc {
++	bimc: interconnect@fc380000 {
++		compatible = "qcom,msm8226-bimc";
++		reg = <0xfc380000 0x6a000>;
++		#interconnect-cells = <1>;
++		status = "disabled";
++	};
++
++	mmss_noc: interconnect@fc478000 {
++		compatible = "qcom,msm8226-mmssnoc";
++		reg = <0xfc478000 0x4000>;
++		#interconnect-cells = <1>;
++		clocks = <&mmcc MMSS_AXI_CLK_SRC>, <&mmcc MMSS_S0_AXI_CLK>;
++		clock-names = "bus", "iface";
++		status = "disabled";
++	};
++
+ 	venus_iommu: iommu@fdc84000 {
+ 		compatible = "qcom,msm8226-venus-iommu";
+ 		reg = <0xfdc84000 0x2600>, <0xfdce0004 0x4>;
+@@ -56,6 +73,9 @@ video-codec@fdc80000 {
+ 			power-domains = <&mmcc VENUS0_GDSC>;
+ 			iommus = <&venus_iommu 0>;
+ 			memory-region = <&venus_mem>;
++			interconnects = <&mmss_noc MSM8226_MMSS_MASTER_VIDEO_P0
++					 &bimc MSM8226_BIMC_SLAVE_EBI_CH0>;
++			interconnect-names = "video-mem";
+ 			status = "disabled";
+ 		};
+ 	};
+diff --git a/drivers/media/platform/qcom/venus/core.c b/drivers/media/platform/qcom/venus/core.c
+index 3502121a1..63893f37a 100644
+--- a/drivers/media/platform/qcom/venus/core.c
++++ b/drivers/media/platform/qcom/venus/core.c
+@@ -497,13 +497,12 @@ static int venus_probe(struct platform_device *pdev)
+ 	core->video_path = devm_of_icc_get(dev, "video-mem");
+ 	if (IS_ERR(core->video_path))
+ 		return PTR_ERR(core->video_path);
++	if (core->res->require_video_path && !core->video_path)
++		return dev_err_probe(dev, -ENODEV, "video-mem interconnect required\n");
+ 
+ 	core->cpucfg_path = devm_of_icc_get(dev, "cpu-cfg");
+ 	if (IS_ERR(core->cpucfg_path))
+ 		return PTR_ERR(core->cpucfg_path);
+-	if (core->res->require_interconnects && (!core->video_path || !core->cpucfg_path))
+-		return dev_err_probe(dev, -ENODEV,
+-				     "video-mem and cpu-cfg interconnects required\n");
+ 
+ 	core->irq = platform_get_irq(pdev, 0);
+ 	if (core->irq < 0)
+@@ -818,7 +817,7 @@ static const struct venus_resources msm8226_res = {
+ 	.dec_nodename = "video-decoder",
+ 	.enc_nodename = "video-encoder",
+ 	.split_reg_banks = true,
+-	.require_interconnects = true,
++	.require_video_path = true,
+ 	.bw_per_direction = true,
+ };
+ 
+diff --git a/drivers/media/platform/qcom/venus/core.h b/drivers/media/platform/qcom/venus/core.h
+index d02f22587..ec1da1d8a 100644
+--- a/drivers/media/platform/qcom/venus/core.h
++++ b/drivers/media/platform/qcom/venus/core.h
+@@ -107,7 +107,7 @@ struct venus_resources {
+ 	const char *dec_nodename;
+ 	const struct firmware_version *min_fw;
+ 	bool split_reg_banks;
+-	bool require_interconnects;
++	bool require_video_path;
+ 	bool bw_per_direction;
+ };
+ 

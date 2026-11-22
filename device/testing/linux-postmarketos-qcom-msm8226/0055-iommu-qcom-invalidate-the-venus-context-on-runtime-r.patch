@@ -1,0 +1,51 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Timothy Schmidt <timschmidt@gmail.com>
+Date: Wed, 18 Nov 2026 11:36:02 -0500
+Subject: [PATCH 17/22] iommu/qcom: Invalidate the Venus context on runtime
+ resume
+
+The PM link orders supplier suspend after the Venus engine is
+quiesced. Disable and drain the context before clock gating, then
+perform halt and full ASID invalidation on resume. Keep the context
+offline until that sequence succeeds so page-table cleanup stays
+independent of runtime PM.
+
+(cherry picked from commit 5fed68fdad831e9f115ac0d0f3f8d6780d6d7658)
+---
+ drivers/iommu/arm/arm-smmu/qcom_iommu.c | 18 +++++++++++-------
+ 1 file changed, 11 insertions(+), 7 deletions(-)
+
+diff --git a/drivers/iommu/arm/arm-smmu/qcom_iommu.c b/drivers/iommu/arm/arm-smmu/qcom_iommu.c
+index 7ef1863aa..4c4868daf 100644
+--- a/drivers/iommu/arm/arm-smmu/qcom_iommu.c
++++ b/drivers/iommu/arm/arm-smmu/qcom_iommu.c
+@@ -1462,18 +1462,22 @@ static int __maybe_unused qcom_iommu_suspend(struct device *dev)
+ 	struct qcom_iommu_dev *qcom_iommu = dev_get_drvdata(dev);
+ 	struct qcom_iommu_ctx *ctx;
+ 	unsigned long flags;
+-	int ret = 0;
+ 
+ 	if (qcom_iommu->wrapper_clk_sel) {
+ 		spin_lock_irqsave(&qcom_iommu->ctx_lock, flags);
+ 		ctx = qcom_iommu->ctxs[0];
+-		if (ctx && qcom_iommu->ctx_online)
+-			ret = qcom_iommu_rearm_venus_ctx(qcom_iommu, ctx, NULL);
+-		if (!ret)
+-			qcom_iommu->ctx_online = false;
++		if (ctx && qcom_iommu->ctx_online) {
++			/*
++			 * The device link orders this after the Venus engine
++			 * quiesces. Disable the context before offline page
++			 * table cleanup. Resume invalidates the ASID before
++			 * restoring the context and releasing the consumer.
++			 */
++			iommu_writel(ctx, ARM_SMMU_CB_SCTLR, 0);
++			iommu_readl(ctx, ARM_SMMU_CB_SCTLR);
++		}
++		qcom_iommu->ctx_online = false;
+ 		spin_unlock_irqrestore(&qcom_iommu->ctx_lock, flags);
+-		if (ret)
+-			return ret;
+ 	}
+ 
+ 	clk_bulk_disable_unprepare(CLK_NUM, qcom_iommu->clks);

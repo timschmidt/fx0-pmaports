@@ -17,9 +17,9 @@
   "normal_signed_builds_not_yet_qualified": true,
   "reader_source_commit": "c7ce2bb8cf78e852eaea6024188c4cf21a4cb355",
   "experimental_CPU_system_sleep_promoted": true,
-  "installed_source_parent": "f3e4afc9bf27e56e9e58343f04aaf9f0f882fe54",
-  "candidate_source_commit": "0a7e426d937e1ff297252894e0838691ca0aac52",
-  "candidate_package_version": "6.18.64-r12",
+  "installed_source_parent": "0a7e426d937e1ff297252894e0838691ca0aac52",
+  "candidate_source_commit": "1c060de0b6b7d6486f2d70f7ef779cbb39497b5f",
+  "candidate_package_version": "6.18.64-r13",
   "packaged_camera_patches": [
     "0002-camss-msm8226-guard-active-stream-sleep.patch",
     "0003-camss-gen1-ignore-wm-completion-while-stopping.patch",
@@ -36,7 +36,7 @@
     "0010-smbb-gate-stock-fx0-comparator-window.patch",
     "0011-smbb-track-managed-recharge-threshold.patch"
   ],
-  "configuration_change": "none (identical to r11)",
+  "configuration_change": "r12 plus V4L_MEM2MEM_DRIVERS=y, VIDEO_QCOM_VENUS=m, INTERCONNECT_QCOM_MSM8226=m (olddefconfig: V4L2_MEM2MEM_DEV, VIDEOBUF2_DMA_CONTIG, OF_DYNAMIC, SPI_DYNAMIC)",
   "charging_source_equivalent_to_RAM_candidate": "8e5eacff1484771c0c96de28b018896a2cd7b738",
   "packaged_battery_patches": [
     "0012-smbb-estimate-capacity-and-report-full.patch",
@@ -80,5 +80,30 @@
     "0037-pmdomain-qcom-cpr-let-the-msm8926-sleep-set-request.patch",
     "0038-regulator-qcom_smd-ignore-a-disabled-voter-s-voltage.patch"
   ],
-  "vddmin_source": "timschmidt/fx0-linux development/fx0-msm8226-vddmin-01; RAM-trial evidence evidence/2026-11-21-msm8226-first-vddmin.json"
+  "vddmin_source": "timschmidt/fx0-linux development/fx0-msm8226-vddmin-01; RAM-trial evidence evidence/2026-11-21-msm8226-first-vddmin.json",
+  "packaged_venus_patches": [
+    "0039-media-venus-require-a-bounded-legacy-arm32-dma-apert.patch",
+    "0040-dt-bindings-describe-msm8226-venus-and-its-iommu.patch",
+    "0041-media-venus-add-split-msm8226-register-and-bandwidth.patch",
+    "0042-arm-dts-qcom-add-disabled-madai-venus-diagnostic-top.patch",
+    "0043-iommu-qcom-propagate-resume-failures-when-attaching.patch",
+    "0044-interconnect-qcom-make-legacy-noc-qos-port-spacing-c.patch",
+    "0045-dt-bindings-describe-the-msm8226-venus-memory-route.patch",
+    "0046-interconnect-qcom-add-the-msm8226-venus-to-memory-pr.patch",
+    "0047-media-venus-wire-the-msm8226-memory-path-in-the-mada.patch",
+    "0048-iommu-qcom-guard-identity-mmio-and-fix-multi-context.patch",
+    "0049-iommu-qcom-keep-venus-page-table-cleanup-independent.patch",
+    "0050-dt-bindings-document-the-shared-msm8226-multimedia-c.patch",
+    "0051-interconnect-qcom-preserve-shared-clock-votes-on-msm.patch",
+    "0052-media-venus-declare-msm8226-firmware-and-report-star.patch",
+    "0053-media-venus-allow-madai-s-optional-cpu-cfg-interconn.patch",
+    "0054-media-venus-balance-runtime-pm-references-on-teardow.patch",
+    "0055-iommu-qcom-invalidate-the-venus-context-on-runtime-r.patch",
+    "0056-media-venus-restrict-the-h.264-8x8-control-to-hfi-4x.patch",
+    "0057-media-venus-keep-msm8226-h.264-headers-joined.patch",
+    "0058-interconnect-qcom-keep-the-madai-mmss-interface-cloc.patch",
+    "0059-arm-dts-qcom-enable-the-venus-route-in-the-separate.patch",
+    "0060-arm-dts-qcom-msm8926-lg-madai-fold-the-venus-codec-i.patch"
+  ],
+  "venus_source": "timschmidt/fx0-linux development/fx0-venus-r13-01 (= r12 + development/fx0-venus-6.18.64-encoder-01 + Madai DT fold)"
 }

@@ -1,0 +1,27 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Timothy Schmidt <timschmidt@gmail.com>
+Date: Wed, 18 Nov 2026 00:01:53 -0500
+Subject: [PATCH 12/22] dt-bindings: Document the shared MSM8226 multimedia
+ clock
+
+Signed-off-by: Timothy Schmidt <timschmidt@gmail.com>
+---
+ .../devicetree/bindings/interconnect/qcom,msm8226.yaml       | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/Documentation/devicetree/bindings/interconnect/qcom,msm8226.yaml b/Documentation/devicetree/bindings/interconnect/qcom,msm8226.yaml
+index 413b353d8..a588cb24f 100644
+--- a/Documentation/devicetree/bindings/interconnect/qcom,msm8226.yaml
++++ b/Documentation/devicetree/bindings/interconnect/qcom,msm8226.yaml
+@@ -11,8 +11,9 @@ maintainers:
+ 
+ description: |
+   The MMSS NoC connects the multimedia masters to the Bus Interconnect and
+-  Memory Controller (BIMC). BIMC clock votes go to the RPM. The multimedia
+-  fabric uses clocks from the multimedia clock controller.
++  Memory Controller (BIMC). BIMC clocks are managed through the RPM.
++  The multimedia fabric shares an AXI rate with display and camera clients
++  of the multimedia clock controller.
+ 
+ properties:
+   compatible:

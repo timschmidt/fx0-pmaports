@@ -1,0 +1,135 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Timothy Schmidt <timschmidt@gmail.com>
+Date: Wed, 18 Nov 2026 00:01:53 -0500
+Subject: [PATCH 13/22] interconnect: qcom: Preserve shared clock votes on
+ MSM8226
+
+Keep the RPMCC handoff on the memory clock while the preview covers
+only the Venus memory path. Start its endpoints at zero bandwidth.
+Use a clock framework minimum for AXI so other consumers can request
+higher rates. Release the minimum when the video request goes idle.
+
+Signed-off-by: Timothy Schmidt <timschmidt@gmail.com>
+---
+ drivers/interconnect/qcom/icc-rpm.c |  6 +++++-
+ drivers/interconnect/qcom/icc-rpm.h |  4 ++++
+ drivers/interconnect/qcom/msm8226.c | 31 +++++++++++++++++++++++++++--
+ 3 files changed, 38 insertions(+), 3 deletions(-)
+
+diff --git a/drivers/interconnect/qcom/icc-rpm.c b/drivers/interconnect/qcom/icc-rpm.c
+index c2ac76323..2d14e2456 100644
+--- a/drivers/interconnect/qcom/icc-rpm.c
++++ b/drivers/interconnect/qcom/icc-rpm.c
+@@ -388,7 +388,7 @@ static int qcom_icc_set(struct icc_node *src, struct icc_node *dst)
+ 		active_rate = max_t(u64, active_rate, sleep_rate);
+ 		/* ARM32 caps clk_set_rate arg to u32.. Nothing we can do about that! */
+ 		active_rate = min_t(u64, 1000ULL * active_rate, ULONG_MAX);
+-		return clk_set_rate(qp->bus_clk, active_rate);
++		return qp->set_bus_clk_rate(qp->bus_clk, active_rate);
+ 	}
+ 
+ 	/* RPM only accepts <=INT_MAX rates */
+@@ -498,7 +498,10 @@ int qnoc_probe(struct platform_device *pdev)
+ 		qp->bus_clk = devm_clk_get_optional(dev, "bus");
+ 		if (IS_ERR(qp->bus_clk))
+ 			return PTR_ERR(qp->bus_clk);
++		if (desc->set_bus_clk_rate && !qp->bus_clk)
++			return dev_err_probe(dev, -ENOENT, "missing bus clock\n");
+ 	}
++	qp->set_bus_clk_rate = desc->set_bus_clk_rate ?: clk_set_rate;
+ 
+ 	data = devm_kzalloc(dev, struct_size(data, nodes, num_nodes),
+ 			    GFP_KERNEL);
+@@ -551,6 +554,7 @@ int qnoc_probe(struct platform_device *pdev)
+ 	provider = &qp->provider;
+ 	provider->dev = dev;
+ 	provider->set = qcom_icc_set;
++	provider->get_bw = desc->get_bw;
+ 	provider->pre_aggregate = qcom_icc_pre_bw_aggregate;
+ 	provider->aggregate = qcom_icc_bw_aggregate;
+ 	provider->xlate_extended = qcom_icc_xlate_extended;
+diff --git a/drivers/interconnect/qcom/icc-rpm.h b/drivers/interconnect/qcom/icc-rpm.h
+index 073182548..852e9302f 100644
+--- a/drivers/interconnect/qcom/icc-rpm.h
++++ b/drivers/interconnect/qcom/icc-rpm.h
+@@ -50,6 +50,7 @@ struct rpm_clk_resource {
+  * @bus_clk_rate: bus clock rate in Hz
+  * @bus_clk_desc: a pointer to a rpm_clk_resource description of bus clocks
+  * @bus_clk: a pointer to a HLOS-owned bus clock
++ * @set_bus_clk_rate: apply a HLOS bus clock request in Hz
+  * @intf_clks: a clk_bulk_data array of interface clocks
+  * @keep_alive: whether to always keep a minimum vote on the bus clocks
+  * @is_on: whether the bus is powered on
+@@ -66,6 +67,7 @@ struct qcom_icc_provider {
+ 	u32 bus_clk_rate[QCOM_SMD_RPM_STATE_NUM];
+ 	const struct rpm_clk_resource *bus_clk_desc;
+ 	struct clk *bus_clk;
++	int (*set_bus_clk_rate)(struct clk *clk, unsigned long rate);
+ 	struct clk_bulk_data *intf_clks;
+ 	bool keep_alive;
+ 	bool is_on;
+@@ -131,6 +133,8 @@ struct qcom_icc_desc {
+ 	struct qcom_icc_node * const *nodes;
+ 	size_t num_nodes;
+ 	const struct rpm_clk_resource *bus_clk_desc;
++	int (*set_bus_clk_rate)(struct clk *clk, unsigned long rate);
++	int (*get_bw)(struct icc_node *node, u32 *avg, u32 *peak);
+ 	const char * const *intf_clocks;
+ 	size_t num_intf_clocks;
+ 	bool keep_alive;
+diff --git a/drivers/interconnect/qcom/msm8226.c b/drivers/interconnect/qcom/msm8226.c
+index aa788b18b..74e7bc0d7 100644
+--- a/drivers/interconnect/qcom/msm8226.c
++++ b/drivers/interconnect/qcom/msm8226.c
+@@ -81,6 +81,31 @@ static struct qcom_icc_node * const msm8226_mmss_nodes[] = {
+ 
+ static const char * const msm8226_mmss_intf_clocks[] = { "iface" };
+ 
++static int msm8226_get_bw(struct icc_node *node, u32 *avg, u32 *peak)
++{
++	/* These endpoints only account for video requests made after probe. */
++	*avg = 0;
++	*peak = 0;
++
++	return 0;
++}
++
++static int msm8226_set_mmss_rate(struct clk *clk, unsigned long rate)
++{
++	long actual;
++
++	if (rate) {
++		actual = clk_round_rate(clk, rate);
++		if (actual < 0)
++			return actual;
++		if ((unsigned long)actual < rate)
++			return -ERANGE;
++	}
++
++	/* Display and camera clocks can also propagate rates to this root. */
++	return clk_set_min_rate(clk, rate);
++}
++
+ static const struct regmap_config msm8226_mmss_regmap_config = {
+ 	.reg_bits = 32,
+ 	.val_bits = 32,
+@@ -93,6 +118,8 @@ static const struct qcom_icc_desc msm8226_mmss = {
+ 	.type = QCOM_ICC_NOC,
+ 	.nodes = msm8226_mmss_nodes,
+ 	.num_nodes = ARRAY_SIZE(msm8226_mmss_nodes),
++	.get_bw = msm8226_get_bw,
++	.set_bus_clk_rate = msm8226_set_mmss_rate,
+ 	.intf_clocks = msm8226_mmss_intf_clocks,
+ 	.num_intf_clocks = ARRAY_SIZE(msm8226_mmss_intf_clocks),
+ 	.regmap_cfg = &msm8226_mmss_regmap_config,
+@@ -117,8 +144,8 @@ static const struct qcom_icc_desc msm8226_bimc = {
+ 	.type = QCOM_ICC_BIMC,
+ 	.nodes = msm8226_bimc_nodes,
+ 	.num_nodes = ARRAY_SIZE(msm8226_bimc_nodes),
+-	.bus_clk_desc = &bimc_clk,
+-	.keep_alive = true,
++	.get_bw = msm8226_get_bw,
++	/* Keep the RPM clock controller's vote until all DDR users are modelled. */
+ 	.regmap_cfg = &msm8226_bimc_regmap_config,
+ 	.qos_offset = 0x8000,
+ };
