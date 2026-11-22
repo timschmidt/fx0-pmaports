@@ -97,6 +97,11 @@ source="
 	0058-interconnect-qcom-keep-the-madai-mmss-interface-cloc.patch
 	0059-arm-dts-qcom-enable-the-venus-route-in-the-separate.patch
 	0060-arm-dts-qcom-msm8926-lg-madai-fold-the-venus-codec-i.patch
+	0061-media-venus-reserve-a-distinct-tag-for-encoder-drain.patch
+	0062-media-venus-test-a-mapped-encoder-eos-address-on-msm.patch
+	0063-media-venus-trace-hfi-1xx-encoder-drain-buffers.patch
+	0064-media-venus-compare-the-encoder-eos-capture-buffer-a.patch
+	0065-media-venus-ignore-the-unbacked-msm8226-encoder-eos.patch
 "
 builddir="$srcdir/fx0-linux-$_commit"
 
@@ -208,4 +213,9 @@ b04072e6b81320c51bdd5797a3a4240bfcbd5b93dfcdc4e674f81e75ea3e9748b524908aefbba0c4
 eb391465b5cce8ede41c849e5d84e69ebd8f535255fd04369ca238d8fd7d7bef2fcade4c54dcbfd178027d96c26644b60d66f2e167865be5f821ebb5b769828e  0058-interconnect-qcom-keep-the-madai-mmss-interface-cloc.patch
 4a9215d0e6e0dd20b766e46ddf5b36095311b83de00a87cf1667638cd796cf8b675a813d5aa1c88325f002cccef1323f214bf40b44d0a658e1276f47df385ba3  0059-arm-dts-qcom-enable-the-venus-route-in-the-separate.patch
 8b95f2e0bcc20bfae0fc2ed1f329783a5bfd56bf332989148ccbd6a8e8d708bc6ff73fede2e4e349409e09d2850db0ba3af1000c743fe13df76c8fde982aa2ec  0060-arm-dts-qcom-msm8926-lg-madai-fold-the-venus-codec-i.patch
+623cdd669f22c96ec423b42ede42d1111f2f4d667916ac2253c5dde19315cedf477fc2e4f30eccef3f4ebb7d7ed9e8cf7af890390ce389cd88aa6a17a2054817  0061-media-venus-reserve-a-distinct-tag-for-encoder-drain.patch
+9b18ae9a93636b3175aacc30775b7f33235ae3f139318d1db6e0c4fc8e97667829f304d1f55bc98819e8499e1c9adc271773962deac786b20239303097cbe24d  0062-media-venus-test-a-mapped-encoder-eos-address-on-msm.patch
+8366b7f9b9bfdde2f6f7b74e2e939214c8e4b68b8e3dd8ea0fd6a02b2f24eb35f2b20bf2c70b5059675da4f1962356c2906a2eac4ff0b8e2a7ca36eef48f712d  0063-media-venus-trace-hfi-1xx-encoder-drain-buffers.patch
+d708bba3ee4ed7f6f3bcfc1d5a05867891697f3034b844bd4d4131479827d095d65e1524dd02c3a2e174fb1cd502c36749ada5ba0fb13ef22dc602564e47e508  0064-media-venus-compare-the-encoder-eos-capture-buffer-a.patch
+6e1aefca1a2ab1a90e297deaa9015f91dac5fe0e9567e46703f241faa5ae3ec6083bb3dcf8dcb150f9e4d2f51bb3852a30f9dde8ba2affb87fda7f0f5325e0e7  0065-media-venus-ignore-the-unbacked-msm8226-encoder-eos.patch
 "

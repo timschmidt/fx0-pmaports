@@ -18,7 +18,7 @@
   "reader_source_commit": "c7ce2bb8cf78e852eaea6024188c4cf21a4cb355",
   "experimental_CPU_system_sleep_promoted": true,
   "installed_source_parent": "0a7e426d937e1ff297252894e0838691ca0aac52",
-  "candidate_source_commit": "1c060de0b6b7d6486f2d70f7ef779cbb39497b5f",
+  "candidate_source_commit": "1aa491277754dfe3996f14ed150f543d462e2986",
   "candidate_package_version": "6.18.64-r13",
   "packaged_camera_patches": [
     "0002-camss-msm8226-guard-active-stream-sleep.patch",
@@ -105,5 +105,13 @@
     "0059-arm-dts-qcom-enable-the-venus-route-in-the-separate.patch",
     "0060-arm-dts-qcom-msm8926-lg-madai-fold-the-venus-codec-i.patch"
   ],
-  "venus_source": "timschmidt/fx0-linux development/fx0-venus-r13-01 (= r12 + development/fx0-venus-6.18.64-encoder-01 + Madai DT fold)"
+  "venus_source": "timschmidt/fx0-linux development/fx0-venus-r13-01 (= r12 + development/fx0-venus-6.18.64-encoder-01 + Madai DT fold)",
+  "packaged_venus_encoder_eos_patches": [
+    "0061-media-venus-reserve-a-distinct-tag-for-encoder-drain.patch",
+    "0062-media-venus-test-a-mapped-encoder-eos-address-on-msm.patch",
+    "0063-media-venus-trace-hfi-1xx-encoder-drain-buffers.patch",
+    "0064-media-venus-compare-the-encoder-eos-capture-buffer-a.patch",
+    "0065-media-venus-ignore-the-unbacked-msm8226-encoder-eos.patch"
+  ],
+  "venus_encoder_eos_source": "fx0-linux diagnostic/fx0-venus-encoder-ignore-unbacked-eos-01 (b28c5e79), the stack behind the earlier passing encoder workloads"
 }

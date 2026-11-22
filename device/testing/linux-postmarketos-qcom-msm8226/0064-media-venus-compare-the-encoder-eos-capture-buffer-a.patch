@@ -1,0 +1,42 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Timothy Schmidt <timschmidt@gmail.com>
+Date: Wed, 18 Nov 2026 20:34:48 -0500
+Subject: [PATCH 4/5] media: venus: Compare the encoder EOS capture buffer
+ address
+
+---
+ drivers/media/platform/qcom/venus/hfi_msgs.c  | 5 +++--
+ drivers/media/platform/qcom/venus/hfi_venus.c | 4 ++--
+ 2 files changed, 5 insertions(+), 4 deletions(-)
+
+diff --git a/drivers/media/platform/qcom/venus/hfi_msgs.c b/drivers/media/platform/qcom/venus/hfi_msgs.c
+index 6f19c280d..66855dad5 100644
+--- a/drivers/media/platform/qcom/venus/hfi_msgs.c
++++ b/drivers/media/platform/qcom/venus/hfi_msgs.c
+@@ -570,8 +570,9 @@ static void hfi_session_ftb_done(struct venus_core *core,
+ 		error = pkt->error_type;
+ 		if (IS_V1(core))
+ 			dev_dbg(core->dev,
+-				"encoder HFI capture done: tag %#x input %#x status %#x flags %#x size %u offset %u\n",
+-				output_tag, pkt->input_tag, error, hfi_flags, filled_len, offset);
++				"encoder HFI capture done: tag %#x input %#x status %#x flags %#x size %u offset %u IOVA %#x\n",
++				output_tag, pkt->input_tag, error, hfi_flags, filled_len,
++				offset, pkt->packet_buffer);
+ 	} else if (session_type == VIDC_SESSION_TYPE_DEC) {
+ 		struct hfi_msg_session_fbd_uncompressed_plane0_pkt *pkt =
+ 			packet;
+diff --git a/drivers/media/platform/qcom/venus/hfi_venus.c b/drivers/media/platform/qcom/venus/hfi_venus.c
+index c46dd5d61..acb49de9b 100644
+--- a/drivers/media/platform/qcom/venus/hfi_venus.c
++++ b/drivers/media/platform/qcom/venus/hfi_venus.c
+@@ -1358,8 +1358,8 @@ static int venus_session_ftb(struct venus_inst *inst,
+ 		return ret;
+ 
+ 	if (trace)
+-		dev_dbg(inst->core->dev, "encoder HFI queue capture: tag %#x allocation %u\n",
+-			pkt.output_tag, pkt.alloc_len);
++		dev_dbg(inst->core->dev, "encoder HFI queue capture: tag %#x allocation %u IOVA %#x\n",
++			pkt.output_tag, pkt.alloc_len, pkt.packet_buffer);
+ 	ret = venus_iface_cmdq_write(hdev, &pkt, false);
+ 	if (ret && trace)
+ 		dev_dbg(inst->core->dev, "encoder HFI capture queue error: tag %#x errno %d\n",
