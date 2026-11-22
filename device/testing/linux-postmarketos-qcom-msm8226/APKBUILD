@@ -3,7 +3,7 @@ maintainer="Newbyte <newbie13xd@gmail.com>"
 _flavor="postmarketos-qcom-msm8226"
 pkgname=linux-$_flavor
 pkgver=6.18.64
-pkgrel=11
+pkgrel=12
 pkgdesc="Mainline Kernel fork for APQ8026/MSM8226/MSM8926 devices"
 arch="armv7"
 _carch="arm"
@@ -73,6 +73,8 @@ source="
 	0034-arm-qcom-power-up-msm8226-secondaries-through-acc-af.patch
 	0035-arm-dts-qcom-msm8926-lg-madai-use-the-active-only-xo.patch
 	0036-arm-dts-qcom-msm8926-lg-madai-promote-cpr-and-system.patch
+	0037-pmdomain-qcom-cpr-let-the-msm8926-sleep-set-request.patch
+	0038-regulator-qcom_smd-ignore-a-disabled-voter-s-voltage.patch
 "
 builddir="$srcdir/fx0-linux-$_commit"
 
@@ -160,4 +162,6 @@ b69feec607037f66c67b5151ac79f94f76e8e94188ceda4394cc8bd700dc8931d740f833657bcc88
 4be502c48caedcb8afc8300a93557136b090d974817d757dc84cbe1c41b7cbbf7195c4818aa6e631d7d38ed31acad85913b74e9cb98564d7238f2677e5645672  0034-arm-qcom-power-up-msm8226-secondaries-through-acc-af.patch
 ff67ec3c766fff2354e15e429db0f19733250038425313fe7d1f8d367de18ab4bf8f8a8587777006b8c25b9de92f42eabcbd33cdf67899ec5742e637f938d712  0035-arm-dts-qcom-msm8926-lg-madai-use-the-active-only-xo.patch
 bc8979a6996d5b699b56220912c17f70a6ce80025c5052499b457ba4feeb88757f0cdb47de7be39444df8b9bfaa15f8f482ffeebcc31d74ba8b1643a0a2b95a2  0036-arm-dts-qcom-msm8926-lg-madai-promote-cpr-and-system.patch
+32333a14632309df2d5effa820fe9c52128a7ed79a33761ab3cdce052acf004cb3bcfae85aa5fb2e9885b062a9a272239f3b3ad82221137198ed73181f023733  0037-pmdomain-qcom-cpr-let-the-msm8926-sleep-set-request.patch
+6f08561c92eb652508ca4038a87391578361edc69fa37d997d89b752e9039f6bc44470f2895ff09490f1c7ae11cfc4a14d6580c004cbca45df55115399db63ea  0038-regulator-qcom_smd-ignore-a-disabled-voter-s-voltage.patch
 "

@@ -1,0 +1,36 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Timothy Schmidt <timschmidt@gmail.com>
+Date: Sat, 21 Nov 2026 18:59:34 -0500
+Subject: [PATCH 2/2] regulator: qcom_smd: ignore a disabled voter's voltage in
+ the paired sleep set
+
+The paired sleep-set request takes the maximum of the both-set vote, the
+sleep-only vote and the boot hold. A disabled both-set voter keeps its
+cached voltage for its next enable, so the remoteproc proxy MX requests
+(1.2875 V, released after handover) still raised the sleep-only MX
+request that CPR keeps enabled, and MX never reached retention. Count
+the both-set voltage only while that voter is enabled.
+
+Assisted-by: LLM [Claude Code]
+---
+ drivers/regulator/qcom_smd-regulator.c | 7 +++++++
+ 1 file changed, 7 insertions(+)
+
+diff --git a/drivers/regulator/qcom_smd-regulator.c b/drivers/regulator/qcom_smd-regulator.c
+index fcfee8e96..4b55488e4 100644
+--- a/drivers/regulator/qcom_smd-regulator.c
++++ b/drivers/regulator/qcom_smd-regulator.c
+@@ -99,6 +99,13 @@ static struct rpm_reg_vote rpm_reg_pair_sleep_vote(struct rpm_reg_pair *pair,
+ 	const struct rpm_reg_vote *sleep_only = &pair->votes[2];
+ 	u64 load = (u64)vote.load + sleep_only->load;
+ 
++	/*
++	 * A disabled both-set voter keeps its cached voltage for its next
++	 * enable, but the RPM ignores the voltage of a disabled request. It must
++	 * not raise the request that the sleep-only voter keeps enabled.
++	 */
++	if (!vote.enabled)
++		vote.uV = 0;
+ 	if (pair->sleep_enable_valid)
+ 		vote.enabled = pair->sleep_enabled;
+ 	if (pair->sleep_voltage_valid)

@@ -1,0 +1,62 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Timothy Schmidt <timschmidt@gmail.com>
+Date: Sat, 21 Nov 2026 18:00:20 -0500
+Subject: [PATCH 1/2] pmdomain: qcom: cpr: let the MSM8926 sleep set request MX
+ retention
+
+The CPR sleep guard keeps the sleep-only MX vote (l3-so) at the 1.2875 V
+ceiling, so the RPM never reaches VDD-min. The RPM applies the sleep
+set only after the whole APSS cluster has collapsed and restores the
+active set, where CPR keeps MX at its ceiling through l3-ao, before it
+releases the cluster. The stock kernel votes 8226_l3_so at 750 mV
+permanently. Lower the sleep-only vote to 750 mV after a successful
+suspend prepare and raise it back first when restoring.
+
+Assisted-by: LLM [Claude Code]
+---
+ drivers/pmdomain/qcom/cpr-msm8926-suspend.h | 18 +++++++++++++++++-
+ 1 file changed, 17 insertions(+), 1 deletion(-)
+
+diff --git a/drivers/pmdomain/qcom/cpr-msm8926-suspend.h b/drivers/pmdomain/qcom/cpr-msm8926-suspend.h
+index 1b5cead8b..b3befc4d9 100644
+--- a/drivers/pmdomain/qcom/cpr-msm8926-suspend.h
++++ b/drivers/pmdomain/qcom/cpr-msm8926-suspend.h
+@@ -10,6 +10,7 @@
+ #include "cpr-voltage.h"
+ 
+ #define CPR_SUSPEND_SAFE_RATE	300000000UL
++#define CPR_SUSPEND_MX_RETENTION_UV	750000
+ #define CPR_SUSPEND_CFG_MASK	(GENMASK(10, 8) | GENMASK(4, 0))
+ #define CPR_SUSPEND_CMD_BUSY	(BIT(0) | BIT(4) | BIT(31))
+ 
+@@ -95,7 +96,10 @@ static inline int cpr_suspend_cover(struct cpr_msm8926_suspend *sleep)
+ 	ret = cpr_suspend_sync(rails->mx);
+ 	if (ret)
+ 		return ret;
+-	/* Retain the covering sleep ceiling; lowering it needs a separate proof. */
++	/* Raise the sleep-set MX vote back to the covering ceiling first. */
++	ret = regulator_set_voltage(sleep->sleep_mx, rails->mx_max_uV, rails->mx_max_uV);
++	if (ret)
++		return ret;
+ 	ret = cpr_suspend_sync(sleep->sleep_mx);
+ 	if (ret)
+ 		return ret;
+@@ -209,6 +213,18 @@ static inline int cpr_suspend_prepare(struct cpr_msm8926_suspend *sleep,
+ 		ret = -EBUSY;
+ 		goto restore;
+ 	}
++	/*
++	 * The RPM applies the sleep set only once every APSS core and the L2
++	 * have collapsed, and restores the active set (MX at the l3-ao ceiling)
++	 * before it releases the cluster. Like the stock 8226_l3_so vote, let
++	 * the sleep set request MX retention so the RPM can enter VDD-min.
++	 */
++	ret = regulator_set_voltage(sleep->sleep_mx, CPR_SUSPEND_MX_RETENTION_UV,
++				    rails->mx_max_uV);
++	if (!ret)
++		ret = cpr_suspend_sync(sleep->sleep_mx);
++	if (ret)
++		goto restore;
+ 	return 0;
+ 
+ restore:
