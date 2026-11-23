@@ -102,6 +102,7 @@ source="
 	0063-media-venus-trace-hfi-1xx-encoder-drain-buffers.patch
 	0064-media-venus-compare-the-encoder-eos-capture-buffer-a.patch
 	0065-media-venus-ignore-the-unbacked-msm8226-encoder-eos.patch
+	0066-media-venus-make-the-msm8226-hfi-1xx-decoder-work-with-stat.patch
 "
 builddir="$srcdir/fx0-linux-$_commit"
 
@@ -218,4 +219,5 @@ eb391465b5cce8ede41c849e5d84e69ebd8f535255fd04369ca238d8fd7d7bef2fcade4c54dcbfd1
 8366b7f9b9bfdde2f6f7b74e2e939214c8e4b68b8e3dd8ea0fd6a02b2f24eb35f2b20bf2c70b5059675da4f1962356c2906a2eac4ff0b8e2a7ca36eef48f712d  0063-media-venus-trace-hfi-1xx-encoder-drain-buffers.patch
 d708bba3ee4ed7f6f3bcfc1d5a05867891697f3034b844bd4d4131479827d095d65e1524dd02c3a2e174fb1cd502c36749ada5ba0fb13ef22dc602564e47e508  0064-media-venus-compare-the-encoder-eos-capture-buffer-a.patch
 6e1aefca1a2ab1a90e297deaa9015f91dac5fe0e9567e46703f241faa5ae3ec6083bb3dcf8dcb150f9e4d2f51bb3852a30f9dde8ba2affb87fda7f0f5325e0e7  0065-media-venus-ignore-the-unbacked-msm8226-encoder-eos.patch
+5518918ce525a1ff83e3368d1b845fdc31adc643b48c6ce632c8dfa5ace2018785698bb144a48af62a9791271c11cbcc55fd269fc4617e99336e3ee499aebec1  0066-media-venus-make-the-msm8226-hfi-1xx-decoder-work-with-stat.patch
 "

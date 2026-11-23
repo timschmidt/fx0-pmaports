@@ -1,0 +1,917 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Timothy Schmidt <timschmidt@gmail.com>
+Date: Sun, 22 Nov 2026 19:51:34 -0500
+Subject: [PATCH] media: venus: make the MSM8226 HFI 1xx decoder work with
+ stateful clients
+
+Stock FFmpeg's V4L2 decoder crashed the MSM8226 Venus firmware or
+received two frames. Qualified on the Fx0 in RAM trials (byte-exact
+12-frame and 120-frame H.264 decodes, matching timestamps):
+
+- Start the session at the negotiated coded size, report that geometry
+  at OUTPUT streamon and hold coded input until CAPTURE streams, so
+  the firmware has capture buffers before it decodes a picture; ignore
+  the firmware's confirming sequence event.
+- Size capture buffers from the firmware requirements by default and
+  keep a sufficient scratch allocation across reconfiguration instead
+  of releasing it.
+- Do not resend continue-data-transfer, the raw format and allocation
+  mode on reconfiguration, and omit the unused secondary buffer count.
+- The firmware returns no timestamps: take the earliest pending input
+  timestamp for each picture and do not consume entries on input
+  completion.
+
+Debug-level tracing and default-off probes from the diagnostic branch
+diagnostic/fx0-venus-r13-retain-props-01 are retained.
+
+Assisted-by: LLM [Claude Code]
+---
+ drivers/media/platform/qcom/venus/core.h     |   3 +
+ drivers/media/platform/qcom/venus/helpers.c  | 136 ++++++++-
+ drivers/media/platform/qcom/venus/helpers.h  |   1 +
+ drivers/media/platform/qcom/venus/hfi_msgs.c |  27 +-
+ drivers/media/platform/qcom/venus/vdec.c     | 280 +++++++++++++++++--
+ 5 files changed, 419 insertions(+), 28 deletions(-)
+
+diff --git a/drivers/media/platform/qcom/venus/core.h b/drivers/media/platform/qcom/venus/core.h
+index abdf76285..3463f2b37 100644
+--- a/drivers/media/platform/qcom/venus/core.h
++++ b/drivers/media/platform/qcom/venus/core.h
+@@ -350,6 +350,7 @@ struct venus_buffer {
+ 	struct list_head reg_list;
+ 	u32 flags;
+ 	struct list_head ref_list;
++	bool held_input;
+ };
+ 
+ struct clock_data {
+@@ -530,6 +531,8 @@ struct venus_inst {
+ 	unsigned int bit_depth;
+ 	unsigned int pic_struct;
+ 	bool next_buf_last;
++	bool hold_coded_input;
++	bool capture_first;
+ 	bool drain_active;
+ 	enum venus_inst_modes flags;
+ 	struct ida dpb_ids;
+diff --git a/drivers/media/platform/qcom/venus/helpers.c b/drivers/media/platform/qcom/venus/helpers.c
+index 7f370caac..e9c68e086 100644
+--- a/drivers/media/platform/qcom/venus/helpers.c
++++ b/drivers/media/platform/qcom/venus/helpers.c
+@@ -5,7 +5,10 @@
+  */
+ #include <linux/idr.h>
+ #include <linux/list.h>
++#include <linux/log2.h>
++#include <linux/moduleparam.h>
+ #include <linux/mutex.h>
++#include <linux/of.h>
+ #include <linux/slab.h>
+ #include <linux/kernel.h>
+ #include <media/videobuf2-dma-contig.h>
+@@ -237,12 +240,23 @@ static int intbufs_set_buffer(struct venus_inst *inst, u32 type)
+ 	struct hfi_buffer_requirements bufreq;
+ 	struct hfi_buffer_desc bd;
+ 	struct intbuf *buf;
++	bool trace_decoder = IS_V1(core) && inst->session_type == VIDC_SESSION_TYPE_DEC;
+ 	unsigned int i;
+ 	int ret;
+ 
+ 	ret = venus_helper_get_bufreq(inst, type, &bufreq);
+-	if (ret)
++	if (ret) {
++		if (trace_decoder)
++			dev_dbg(dev, "decoder internal buffer %#x query failed: %d\n",
++				type, ret);
+ 		return 0;
++	}
++
++	if (trace_decoder)
++		dev_dbg(dev,
++			"decoder internal buffer %#x: size %u region %u count %u min %u alignment %u contiguous %u\n",
++			type, bufreq.size, bufreq.region_size, bufreq.count_actual,
++			bufreq.count_min, bufreq.alignment, bufreq.contiguous);
+ 
+ 	if (!bufreq.size)
+ 		return 0;
+@@ -272,6 +286,13 @@ static int intbufs_set_buffer(struct venus_inst *inst, u32 type)
+ 		bd.device_addr = buf->da;
+ 
+ 		ret = hfi_session_set_buffers(inst, &bd);
++		if (trace_decoder)
++			dev_dbg(dev, "decoder internal buffer %#x index %u aligned %d register %d\n",
++				type, i,
++				!bufreq.alignment ||
++				(is_power_of_2(bufreq.alignment) &&
++				 IS_ALIGNED(buf->da, bufreq.alignment)),
++				ret);
+ 		if (ret) {
+ 			dev_err(dev, "set session buffers failed\n");
+ 			goto dma_free;
+@@ -374,6 +395,39 @@ int venus_helper_intbufs_free(struct venus_inst *inst)
+ }
+ EXPORT_SYMBOL_GPL(venus_helper_intbufs_free);
+ 
++static bool fx0_decoder_retain_scratch = true;
++module_param(fx0_decoder_retain_scratch, bool, 0400);
++MODULE_PARM_DESC(fx0_decoder_retain_scratch,
++		 "Retain a matching single MSM8226 H.264 scratch buffer across reconfiguration");
++
++static bool intbufs_retain_scratch(struct venus_inst *inst)
++{
++	const enum hfi_version ver = HFI_VERSION_1XX;
++	struct hfi_buffer_requirements req = {};
++	struct venus_core *core = inst->core;
++	struct intbuf *scratch;
++	int ret, entries = 0;
++
++	if (!fx0_decoder_retain_scratch || core->res->hfi_version != ver ||
++	    inst->session_type != VIDC_SESSION_TYPE_DEC ||
++	    !of_device_is_compatible(core->dev->of_node, "qcom,msm8226-venus"))
++		return false;
++
++	list_for_each_entry(scratch, &inst->internalbufs, list)
++		entries++;
++	if (entries != 1) {
++		dev_dbg(core->dev, "decoder scratch kept? no: %d internal buffers\n", entries);
++		return false;
++	}
++
++	scratch = list_first_entry(&inst->internalbufs, struct intbuf, list);
++	ret = venus_helper_get_bufreq(inst, scratch->type, &req);
++	dev_dbg(core->dev, "decoder scratch kept? type %#x size %zu vs req %d type %#x size %u count %u\n",
++		scratch->type, scratch->size, ret, req.type, req.size, req.count_actual);
++	return !ret && scratch->type == HFI_BUFFER_INTERNAL_SCRATCH(ver) &&
++		req.type == scratch->type && req.size <= scratch->size && req.count_actual == 1;
++}
++
+ int venus_helper_intbufs_realloc(struct venus_inst *inst)
+ {
+ 	enum hfi_version ver = inst->core->res->hfi_version;
+@@ -381,6 +435,11 @@ int venus_helper_intbufs_realloc(struct venus_inst *inst)
+ 	struct intbuf *buf, *n;
+ 	int ret;
+ 
++	if (intbufs_retain_scratch(inst)) {
++		dev_dbg(inst->core->dev, "decoder control: retained matching scratch allocation\n");
++		return 0;
++	}
++
+ 	list_for_each_entry_safe(buf, n, &inst->internalbufs, list) {
+ 		if (buf->type == HFI_BUFFER_INTERNAL_PERSIST ||
+ 		    buf->type == HFI_BUFFER_INTERNAL_PERSIST_1)
+@@ -522,6 +581,12 @@ session_process_buf(struct venus_inst *inst, struct vb2_v4l2_buffer *vbuf)
+ 		if (inst->session_type == VIDC_SESSION_TYPE_DEC)
+ 			put_ts_metadata(inst, vbuf);
+ 
++		if (IS_V1(inst->core) && inst->session_type == VIDC_SESSION_TYPE_DEC)
++			dev_dbg(inst->core->dev,
++				"decoder input buffer: alloc %u payload %u offset %u flags %#x\n",
++				fdata.alloc_len, fdata.filled_len, fdata.offset,
++				fdata.flags);
++
+ 		venus_pm_load_scale(inst);
+ 	} else if (type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE) {
+ 		if (inst->session_type == VIDC_SESSION_TYPE_ENC)
+@@ -535,11 +600,26 @@ session_process_buf(struct venus_inst *inst, struct vb2_v4l2_buffer *vbuf)
+ 	return hfi_session_process_buf(inst, &fdata);
+ }
+ 
++static bool fx0_decoder_static_capture;
++module_param(fx0_decoder_static_capture, bool, 0400);
++MODULE_PARM_DESC(fx0_decoder_static_capture, "Use static capture buffers on the MSM8226 decoder");
++
++static bool use_msm8226_static_capture(struct venus_inst *inst)
++{
++	return fx0_decoder_static_capture && IS_V1(inst->core) &&
++	       inst->session_type == VIDC_SESSION_TYPE_DEC &&
++	       inst->opb_buftype == HFI_BUFFER_OUTPUT && !inst->dpb_buftype &&
++	       of_device_is_compatible(inst->core->dev->of_node, "qcom,msm8226-venus");
++}
++
+ static bool is_dynamic_bufmode(struct venus_inst *inst)
+ {
+ 	struct venus_core *core = inst->core;
+ 	struct hfi_plat_caps *caps;
+ 
++	if (use_msm8226_static_capture(inst))
++		return false;
++
+ 	/*
+ 	 * v4 doesn't send BUFFER_ALLOC_MODE_SUPPORTED property and supports
+ 	 * dynamic buffer mode by default for HFI_BUFFER_OUTPUT/OUTPUT2.
+@@ -579,6 +659,7 @@ static int session_register_bufs(struct venus_inst *inst)
+ 	struct device *dev = core->dev;
+ 	struct hfi_buffer_desc bd;
+ 	struct venus_buffer *buf;
++	unsigned int registered = 0;
+ 	int ret = 0;
+ 
+ 	if (is_dynamic_bufmode(inst))
+@@ -591,8 +672,13 @@ static int session_register_bufs(struct venus_inst *inst)
+ 			dev_err(dev, "%s: set buffer failed\n", __func__);
+ 			break;
+ 		}
++		registered++;
+ 	}
+ 
++	if (use_msm8226_static_capture(inst))
++		dev_dbg(dev, "decoder registered %u static capture buffers before start: %d\n",
++			registered, ret);
++
+ 	return ret;
+ }
+ 
+@@ -1306,6 +1392,15 @@ int venus_helper_set_dyn_bufmode(struct venus_inst *inst)
+ 	struct hfi_buffer_alloc_mode mode;
+ 	int ret;
+ 
++	if (use_msm8226_static_capture(inst)) {
++		mode.type = HFI_BUFFER_OUTPUT;
++		mode.mode = HFI_BUFFER_MODE_STATIC;
++		ret = hfi_session_set_property(inst, ptype, &mode);
++		dev_dbg(inst->core->dev,
++			"decoder primary capture static allocation mode: %d\n", ret);
++		return ret;
++	}
++
+ 	if (!is_dynamic_bufmode(inst))
+ 		return 0;
+ 
+@@ -1510,6 +1605,14 @@ void venus_helper_vb2_buf_queue(struct vb2_buffer *vb)
+ 
+ 	cache_payload(inst, vb);
+ 
++	if (inst->session_type == VIDC_SESSION_TYPE_DEC && V4L2_TYPE_IS_OUTPUT(vb->vb2_queue->type)) {
++		struct venus_buffer *buf = to_venus_buffer(vbuf);
++
++		buf->held_input = inst->hold_coded_input;
++		if (buf->held_input)
++			return;
++	}
++
+ 	if (inst->session_type == VIDC_SESSION_TYPE_ENC &&
+ 	    !(inst->streamon_out && inst->streamon_cap))
+ 		return;
+@@ -1526,6 +1629,31 @@ void venus_helper_vb2_buf_queue(struct vb2_buffer *vb)
+ }
+ EXPORT_SYMBOL_GPL(venus_helper_vb2_buf_queue);
+ 
++/* Submit coded buffers that were held while the capture queue was set up. */
++int venus_helper_release_held_input(struct venus_inst *inst)
++{
++	struct v4l2_m2m_buffer *buf, *n;
++	int ret = 0, count = 0;
++
++	inst->hold_coded_input = false;
++	v4l2_m2m_for_each_src_buf_safe(inst->m2m_ctx, buf, n) {
++		struct venus_buffer *vbuf = to_venus_buffer(&buf->vb);
++
++		if (!vbuf->held_input)
++			continue;
++		vbuf->held_input = false;
++		ret = session_process_buf(inst, &buf->vb);
++		if (ret) {
++			return_buf_error(inst, &buf->vb);
++			break;
++		}
++		count++;
++	}
++	dev_dbg(inst->core->dev, "released %d held coded buffers: %d\n", count, ret);
++	return ret;
++}
++EXPORT_SYMBOL_GPL(venus_helper_release_held_input);
++
+ void venus_helper_buffers_done(struct venus_inst *inst, unsigned int type,
+ 			       enum vb2_buffer_state state)
+ {
+@@ -1636,6 +1764,8 @@ EXPORT_SYMBOL_GPL(venus_helper_process_initial_out_bufs);
+ 
+ int venus_helper_vb2_start_streaming(struct venus_inst *inst)
+ {
++	struct venus_core *core = inst->core;
++	bool trace_decoder = IS_V1(core) && inst->session_type == VIDC_SESSION_TYPE_DEC;
+ 	int ret;
+ 
+ 	ret = venus_helper_intbufs_alloc(inst);
+@@ -1649,10 +1779,14 @@ int venus_helper_vb2_start_streaming(struct venus_inst *inst)
+ 	venus_pm_load_scale(inst);
+ 
+ 	ret = hfi_session_load_res(inst);
++	if (trace_decoder)
++		dev_dbg(core->dev, "decoder HFI load resources returned %d\n", ret);
+ 	if (ret)
+ 		goto err_unreg_bufs;
+ 
+ 	ret = hfi_session_start(inst);
++	if (trace_decoder)
++		dev_dbg(core->dev, "decoder HFI session start returned %d\n", ret);
+ 	if (ret)
+ 		goto err_unload_res;
+ 
+diff --git a/drivers/media/platform/qcom/venus/helpers.h b/drivers/media/platform/qcom/venus/helpers.h
+index 358e4f39c..0d3acd2f3 100644
+--- a/drivers/media/platform/qcom/venus/helpers.h
++++ b/drivers/media/platform/qcom/venus/helpers.h
+@@ -22,6 +22,7 @@ void venus_helper_buffers_done(struct venus_inst *inst, unsigned int type,
+ int venus_helper_vb2_buf_init(struct vb2_buffer *vb);
+ int venus_helper_vb2_buf_prepare(struct vb2_buffer *vb);
+ void venus_helper_vb2_buf_queue(struct vb2_buffer *vb);
++int venus_helper_release_held_input(struct venus_inst *inst);
+ void venus_helper_vb2_stop_streaming(struct vb2_queue *q);
+ int venus_helper_vb2_start_streaming(struct venus_inst *inst);
+ void venus_helper_vb2_queue_error(struct venus_inst *inst);
+diff --git a/drivers/media/platform/qcom/venus/hfi_msgs.c b/drivers/media/platform/qcom/venus/hfi_msgs.c
+index 158f52226..993fa8939 100644
+--- a/drivers/media/platform/qcom/venus/hfi_msgs.c
++++ b/drivers/media/platform/qcom/venus/hfi_msgs.c
+@@ -421,7 +421,8 @@ session_get_prop_profile_level(struct hfi_msg_session_property_info_pkt *pkt,
+ 
+ static unsigned int
+ session_get_prop_buf_req(struct hfi_msg_session_property_info_pkt *pkt,
+-			 struct hfi_buffer_requirements *bufreq)
++			 struct hfi_buffer_requirements *bufreq,
++			 struct device *trace_dev)
+ {
+ 	struct hfi_buffer_requirements *buf_req;
+ 	u32 req_bytes;
+@@ -439,6 +440,11 @@ session_get_prop_buf_req(struct hfi_msg_session_property_info_pkt *pkt,
+ 
+ 	while (req_bytes) {
+ 		memcpy(&bufreq[idx], buf_req, sizeof(*bufreq));
++		if (trace_dev)
++			dev_dbg(trace_dev,
++				"decoder HFI buffer requirements entry %u: type %#x size %u count %u min %u\n",
++				idx, buf_req->type, buf_req->size,
++				buf_req->count_actual, buf_req->count_min);
+ 		idx++;
+ 
+ 		if (idx >= HFI_BUFFER_TYPE_MAX)
+@@ -451,12 +457,18 @@ session_get_prop_buf_req(struct hfi_msg_session_property_info_pkt *pkt,
+ 	return HFI_ERR_NONE;
+ }
+ 
++static bool trace_legacy_decoder(struct venus_inst *inst)
++{
++	return IS_V1(inst->core) && inst->session_type == VIDC_SESSION_TYPE_DEC;
++}
++
+ static void hfi_session_prop_info(struct venus_core *core,
+ 				  struct venus_inst *inst, void *packet)
+ {
+ 	struct hfi_msg_session_property_info_pkt *pkt = packet;
+ 	struct device *dev = core->dev;
+ 	union hfi_get_property *hprop = &inst->hprop;
++	bool trace = trace_legacy_decoder(inst);
+ 	unsigned int error = HFI_ERR_NONE;
+ 
+ 	if (!pkt->num_properties) {
+@@ -468,7 +480,12 @@ static void hfi_session_prop_info(struct venus_core *core,
+ 	switch (pkt->property) {
+ 	case HFI_PROPERTY_CONFIG_BUFFER_REQUIREMENTS:
+ 		memset(hprop->bufreq, 0, sizeof(hprop->bufreq));
+-		error = session_get_prop_buf_req(pkt, hprop->bufreq);
++		error = session_get_prop_buf_req(pkt, hprop->bufreq,
++						 trace ? dev : NULL);
++		if (trace)
++			dev_dbg(dev,
++				"decoder HFI buffer requirements reply: bytes %u properties %u parser status %#x\n",
++				pkt->shdr.hdr.size, pkt->num_properties, error);
+ 		break;
+ 	case HFI_PROPERTY_PARAM_PROFILE_LEVEL_CURRENT:
+ 		memset(&hprop->profile_level, 0, sizeof(hprop->profile_level));
+@@ -518,6 +535,9 @@ static void hfi_session_load_res_done(struct venus_core *core,
+ {
+ 	struct hfi_msg_session_load_resources_done_pkt *pkt = packet;
+ 
++	if (trace_legacy_decoder(inst))
++		dev_dbg(core->dev, "decoder HFI load resources reply: status %#x\n",
++			pkt->error_type);
+ 	inst->error = pkt->error_type;
+ 	complete(&inst->done);
+ }
+@@ -649,6 +669,9 @@ static void hfi_session_start_done(struct venus_core *core,
+ {
+ 	struct hfi_msg_session_start_done_pkt *pkt = packet;
+ 
++	if (trace_legacy_decoder(inst))
++		dev_dbg(core->dev, "decoder HFI session start reply: status %#x\n",
++			pkt->error_type);
+ 	inst->error = pkt->error_type;
+ 	complete(&inst->done);
+ }
+diff --git a/drivers/media/platform/qcom/venus/vdec.c b/drivers/media/platform/qcom/venus/vdec.c
+index 222f4b948..0c6c8cbe1 100644
+--- a/drivers/media/platform/qcom/venus/vdec.c
++++ b/drivers/media/platform/qcom/venus/vdec.c
+@@ -6,6 +6,7 @@
+ #include <linux/clk.h>
+ #include <linux/module.h>
+ #include <linux/mod_devicetable.h>
++#include <linux/of.h>
+ #include <linux/platform_device.h>
+ #include <linux/pm_runtime.h>
+ #include <linux/slab.h>
+@@ -22,6 +23,11 @@
+ #include "vdec.h"
+ #include "pm_helpers.h"
+ 
++static bool fx0_decoder_fw_capture_size = true;
++module_param(fx0_decoder_fw_capture_size, bool, 0400);
++MODULE_PARM_DESC(fx0_decoder_fw_capture_size,
++		 "Use the firmware buffer size for primary MSM8226 NV12 capture allocation");
++
+ /*
+  * Three resons to keep MPLANE formats (despite that the number of planes
+  * currently is one):
+@@ -744,13 +750,17 @@ static int vdec_set_work_route(struct venus_inst *inst)
+ 				 HFI_COLOR_FORMAT_UBWC_BASE))
+ 
+ 
+-static int vdec_output_conf(struct venus_inst *inst)
++static int vdec_output_conf(struct venus_inst *inst, bool reconfigure)
+ {
+ 	struct venus_core *core = inst->core;
+ 	struct hfi_enable en = { .enable = 1 };
+ 	struct hfi_buffer_requirements bufreq;
++	bool legacy_reconfigure = reconfigure &&
++		of_device_is_compatible(core->dev->of_node, "qcom,msm8226-venus");
+ 	u32 width = inst->width;
+ 	u32 height = inst->height;
++	u32 old_opb_fmt = inst->opb_fmt;
++	u32 old_opb_type = inst->opb_buftype;
+ 	u32 out_fmt, out2_fmt;
+ 	bool ubwc = false;
+ 	u32 ptype;
+@@ -760,9 +770,11 @@ static int vdec_output_conf(struct venus_inst *inst)
+ 	if (ret)
+ 		return ret;
+ 
+-	if (core->res->hfi_version == HFI_VERSION_1XX) {
++	/* MSM8226 firmware retains these session properties across a DRC. */
++	if (core->res->hfi_version == HFI_VERSION_1XX && !legacy_reconfigure) {
+ 		ptype = HFI_PROPERTY_PARAM_VDEC_CONTINUE_DATA_TRANSFER;
+ 		ret = hfi_session_set_property(inst, ptype, &en);
++		dev_dbg(core->dev_dec, "decoder continue-data-transfer: %d\n", ret);
+ 		if (ret)
+ 			return ret;
+ 	}
+@@ -802,10 +814,15 @@ static int vdec_output_conf(struct venus_inst *inst)
+ 		inst->dpb_fmt = 0;
+ 	}
+ 
+-	ret = venus_helper_set_raw_format(inst, inst->opb_fmt,
+-					  inst->opb_buftype);
+-	if (ret)
+-		return ret;
++	if (!legacy_reconfigure || inst->opb_fmt != old_opb_fmt ||
++	    inst->opb_buftype != old_opb_type) {
++		ret = venus_helper_set_raw_format(inst, inst->opb_fmt,
++						  inst->opb_buftype);
++		dev_dbg(core->dev_dec, "decoder raw format %#x type %u: %d\n",
++			inst->opb_fmt, inst->opb_buftype, ret);
++		if (ret)
++			return ret;
++	}
+ 
+ 	ret = venus_helper_set_format_constraints(inst);
+ 	if (ret)
+@@ -862,25 +879,39 @@ static int vdec_output_conf(struct venus_inst *inst)
+ 		}
+ 	}
+ 
+-	ret = venus_helper_set_dyn_bufmode(inst);
+-	if (ret)
+-		return ret;
++	if (!legacy_reconfigure) {
++		ret = venus_helper_set_dyn_bufmode(inst);
++		dev_dbg(core->dev_dec, "decoder dynamic buffer mode: %d\n", ret);
++		if (ret)
++			return ret;
++	}
+ 
+ 	return 0;
+ }
+ 
+ static int vdec_session_init(struct venus_inst *inst)
+ {
++	struct device *dev = inst->core->dev_dec;
++	u32 width = frame_width_min(inst);
++	u32 height = frame_height_min(inst);
+ 	int ret;
+ 
+ 	ret = venus_helper_session_init(inst);
++	dev_dbg(dev, "decoder session init: %d\n", ret);
+ 	if (ret == -EALREADY)
+ 		return 0;
+ 	else if (ret)
+ 		return ret;
+ 
+-	ret = venus_helper_set_input_resolution(inst, frame_width_min(inst),
+-						frame_height_min(inst));
++	/* Start MSM8226 at the negotiated coded size, as its vendor driver does. */
++	if (of_device_is_compatible(inst->core->dev->of_node, "qcom,msm8226-venus")) {
++		width = inst->out_width;
++		height = inst->out_height;
++	}
++
++	ret = venus_helper_set_input_resolution(inst, width, height);
++	dev_dbg(dev, "decoder initial resolution %ux%u from format %ux%u: %d\n",
++		width, height, inst->out_width, inst->out_height, ret);
+ 	if (ret)
+ 		goto deinit;
+ 
+@@ -891,7 +922,7 @@ static int vdec_session_init(struct venus_inst *inst)
+ }
+ 
+ static int vdec_num_buffers(struct venus_inst *inst, unsigned int *in_num,
+-			    unsigned int *out_num)
++			    unsigned int *out_num, unsigned int *out_size)
+ {
+ 	enum hfi_version ver = inst->core->res->hfi_version;
+ 	struct hfi_buffer_requirements bufreq;
+@@ -910,17 +941,28 @@ static int vdec_num_buffers(struct venus_inst *inst, unsigned int *in_num,
+ 		return ret;
+ 
+ 	*out_num = hfi_bufreq_get_count_min(&bufreq, ver);
++	*out_size = bufreq.size;
+ 
+ 	return 0;
+ }
+ 
++static bool vdec_use_msm8226_fw_capture_size(struct venus_inst *inst)
++{
++	struct venus_core *core = inst->core;
++
++	return fx0_decoder_fw_capture_size && IS_V1(core) &&
++	       inst->fmt_cap->pixfmt == V4L2_PIX_FMT_NV12 &&
++	       !inst->dpb_buftype &&
++	       of_device_is_compatible(core->dev->of_node, "qcom,msm8226-venus");
++}
++
+ static int vdec_queue_setup(struct vb2_queue *q,
+ 			    unsigned int *num_buffers, unsigned int *num_planes,
+ 			    unsigned int sizes[], struct device *alloc_devs[])
+ {
+ 	struct venus_inst *inst = vb2_get_drv_priv(q);
+ 	struct venus_core *core = inst->core;
+-	unsigned int in_num, out_num;
++	unsigned int in_num, out_num, out_size;
+ 	int ret = 0;
+ 
+ 	if (*num_planes) {
+@@ -963,7 +1005,7 @@ static int vdec_queue_setup(struct vb2_queue *q,
+ 	if (ret)
+ 		goto put_power;
+ 
+-	ret = vdec_num_buffers(inst, &in_num, &out_num);
++	ret = vdec_num_buffers(inst, &in_num, &out_num, &out_size);
+ 	if (ret)
+ 		goto put_power;
+ 
+@@ -988,6 +1030,14 @@ static int vdec_queue_setup(struct vb2_queue *q,
+ 		sizes[0] = venus_helper_get_framesz(inst->fmt_cap->pixfmt,
+ 						    inst->width,
+ 						    inst->height);
++		if (vdec_use_msm8226_fw_capture_size(inst)) {
++			unsigned int size = max(sizes[0], out_size);
++
++			dev_dbg(core->dev_dec,
++				"decoder capture allocation: calculated %u firmware %u selected %u\n",
++				sizes[0], out_size, size);
++			sizes[0] = size;
++		}
+ 		inst->output_buf_size = sizes[0];
+ 		*num_buffers = max(*num_buffers, out_num);
+ 		inst->num_output_bufs = *num_buffers;
+@@ -1036,13 +1086,71 @@ static int vdec_verify_conf(struct venus_inst *inst)
+ 	return 0;
+ }
+ 
+-static int vdec_start_capture(struct venus_inst *inst)
++static int vdec_set_buffer_counts(struct venus_inst *inst)
++{
++	struct venus_core *core = inst->core;
++	unsigned int output2 = VB2_MAX_FRAME;
++	int ret;
++
++	if (inst->opb_buftype == HFI_BUFFER_OUTPUT && !inst->dpb_buftype &&
++	    of_device_is_compatible(core->dev->of_node, "qcom,msm8226-venus"))
++		output2 = 0;
++
++	ret = venus_helper_set_num_bufs(inst, inst->num_input_bufs,
++				       VB2_MAX_FRAME, output2);
++	dev_dbg(core->dev_dec, "decoder buffer counts %u/%d/%u: %d\n",
++		inst->num_input_bufs, VB2_MAX_FRAME, output2, ret);
++
++	return ret;
++}
++
++static int vdec_check_preallocated_capture(struct venus_inst *inst,
++					   struct vb2_queue *q)
++{
++	struct hfi_buffer_requirements req;
++	unsigned int count = vb2_get_num_buffers(q);
++	unsigned int i, size;
++	int ret;
++
++	ret = venus_helper_get_bufreq(inst, HFI_BUFFER_OUTPUT, &req);
++	if (ret)
++		return ret;
++	if (!count || count < req.count_actual ||
++	    count < hfi_bufreq_get_count_min(&req, HFI_VERSION_1XX))
++		return -ENOSPC;
++
++	size = max(req.size, venus_helper_get_framesz(inst->fmt_cap->pixfmt,
++						     inst->width, inst->height));
++	for (i = 0; i < count; i++) {
++		struct vb2_buffer *vb = vb2_get_buffer(q, i);
++
++		if (!vb || vb->num_planes != 1 || vb2_plane_size(vb, 0) < size)
++			return -ENOSPC;
++	}
++
++	dev_dbg(inst->core->dev_dec, "decoder reusing %u capture buffers of at least %u bytes\n",
++		count, size);
++	return 0;
++}
++
++static int vdec_start_capture(struct venus_inst *inst, struct vb2_queue *q)
+ {
+ 	int ret;
+ 
+ 	if (!inst->streamon_out)
+ 		return 0;
+ 
++	if (inst->capture_first && inst->codec_state == VENUS_DEC_STATE_CAPTURE_SETUP &&
++	    !inst->reconfig) {
++		ret = venus_helper_process_initial_cap_bufs(inst);
++		dev_dbg(inst->core->dev_dec, "decoder capture-first buffers: %d\n", ret);
++		if (ret)
++			return ret;
++		inst->codec_state = VENUS_DEC_STATE_DECODING;
++		inst->streamon_cap = 1;
++		return venus_helper_release_held_input(inst);
++	}
++
+ 	if (inst->codec_state == VENUS_DEC_STATE_DECODING) {
+ 		if (inst->reconfig)
+ 			goto reconfigure;
+@@ -1053,16 +1161,37 @@ static int vdec_start_capture(struct venus_inst *inst)
+ 		return 0;
+ 	}
+ 
++	if (inst->codec_state == VENUS_DEC_STATE_CAPTURE_SETUP &&
++	    inst->sequence_cap == 0 &&
++	    inst->opb_buftype == HFI_BUFFER_OUTPUT &&
++	    vdec_use_msm8226_fw_capture_size(inst)) {
++		ret = vdec_check_preallocated_capture(inst, q);
++		if (ret)
++			return ret;
++		if (inst->reconfig)
++			goto reconfigure;
++
++		ret = venus_helper_process_initial_cap_bufs(inst);
++		dev_dbg(inst->core->dev_dec,
++			"decoder queued preallocated capture with resources retained: %d\n", ret);
++		if (ret)
++			return ret;
++		inst->codec_state = VENUS_DEC_STATE_DECODING;
++		inst->streamon_cap = 1;
++		if (inst->hold_coded_input)
++			return venus_helper_release_held_input(inst);
++		return 0;
++	}
++
+ 	if (inst->codec_state != VENUS_DEC_STATE_STOPPED)
+ 		return 0;
+ 
+ reconfigure:
+-	ret = vdec_output_conf(inst);
++	ret = vdec_output_conf(inst, true);
+ 	if (ret)
+ 		return ret;
+ 
+-	ret = venus_helper_set_num_bufs(inst, inst->num_input_bufs,
+-					VB2_MAX_FRAME, VB2_MAX_FRAME);
++	ret = vdec_set_buffer_counts(inst);
+ 	if (ret)
+ 		return ret;
+ 
+@@ -1100,6 +1229,9 @@ static int vdec_start_capture(struct venus_inst *inst)
+ 	inst->reconfig = false;
+ 	inst->drain_active = false;
+ 
++	if (inst->hold_coded_input)
++		return venus_helper_release_held_input(inst);
++
+ 	return 0;
+ 
+ free_dpb_bufs:
+@@ -1110,6 +1242,7 @@ static int vdec_start_capture(struct venus_inst *inst)
+ 
+ static int vdec_start_output(struct venus_inst *inst)
+ {
++	struct device *dev = inst->core->dev_dec;
+ 	int ret;
+ 
+ 	if (inst->codec_state == VENUS_DEC_STATE_SEEK) {
+@@ -1146,6 +1279,7 @@ static int vdec_start_output(struct venus_inst *inst)
+ 	inst->next_buf_last = false;
+ 
+ 	ret = vdec_set_properties(inst);
++	dev_dbg(dev, "decoder startup properties: %d\n", ret);
+ 	if (ret)
+ 		return ret;
+ 
+@@ -1153,7 +1287,8 @@ static int vdec_start_output(struct venus_inst *inst)
+ 	if (ret)
+ 		return ret;
+ 
+-	ret = vdec_output_conf(inst);
++	ret = vdec_output_conf(inst, false);
++	dev_dbg(dev, "decoder output configuration: %d\n", ret);
+ 	if (ret)
+ 		return ret;
+ 
+@@ -1161,16 +1296,41 @@ static int vdec_start_output(struct venus_inst *inst)
+ 	if (ret)
+ 		return ret;
+ 
+-	ret = venus_helper_set_num_bufs(inst, inst->num_input_bufs,
+-					VB2_MAX_FRAME, VB2_MAX_FRAME);
++	ret = vdec_set_buffer_counts(inst);
+ 	if (ret)
+ 		return ret;
+ 
+ 	ret = venus_helper_vb2_start_streaming(inst);
++	dev_dbg(dev, "decoder HFI start: %d\n", ret);
+ 	if (ret)
+ 		return ret;
+ 
++	/*
++	 * The MSM8226 firmware faults if it decodes a picture before any
++	 * capture buffer is registered, which is the order of a stateful
++	 * client that waits for the first source change. Report the
++	 * negotiated geometry at once and hold coded input until capture
++	 * streams, so capture buffers always reach the firmware first.
++	 */
++	if (IS_V1(inst->core) && inst->out_width && inst->out_height &&
++	    of_device_is_compatible(inst->core->dev->of_node, "qcom,msm8226-venus")) {
++		static const struct v4l2_event ev = {
++			.type = V4L2_EVENT_SOURCE_CHANGE,
++			.u.src_change.changes = V4L2_EVENT_SRC_CH_RESOLUTION };
++		struct v4l2_m2m_buffer *mbuf;
++
++		v4l2_m2m_for_each_src_buf(inst->m2m_ctx, mbuf)
++			to_venus_buffer(&mbuf->vb)->held_input = true;
++		inst->hold_coded_input = true;
++		inst->capture_first = true;
++		inst->codec_state = VENUS_DEC_STATE_CAPTURE_SETUP;
++		v4l2_event_queue_fh(&inst->fh, &ev);
++		dev_dbg(dev, "decoder capture first at %ux%u\n", inst->out_width, inst->out_height);
++		goto done;
++	}
++
+ 	ret = venus_helper_process_initial_out_bufs(inst);
++	dev_dbg(dev, "decoder initial coded buffers: %d\n", ret);
+ 	if (ret)
+ 		return ret;
+ 
+@@ -1189,7 +1349,7 @@ static int vdec_start_streaming(struct vb2_queue *q, unsigned int count)
+ 	mutex_lock(&inst->lock);
+ 
+ 	if (q->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE) {
+-		ret = vdec_start_capture(inst);
++		ret = vdec_start_capture(inst, q);
+ 	} else {
+ 		ret = vdec_pm_get(inst);
+ 		if (ret)
+@@ -1287,6 +1447,11 @@ static void vdec_stop_streaming(struct vb2_queue *q)
+ 
+ 	mutex_lock(&inst->lock);
+ 
++	if (q->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) {
++		inst->hold_coded_input = false;
++		inst->capture_first = false;
++	}
++
+ 	if (q->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE)
+ 		ret = vdec_stop_capture(inst);
+ 	else
+@@ -1408,6 +1573,28 @@ static const struct vb2_ops vdec_vb2_ops = {
+ 	.buf_queue = vdec_vb2_buf_queue,
+ };
+ 
++/*
++ * The MSM8226 (HFI 1xx) firmware does not return the input timestamp with a
++ * decoded picture. Pictures leave the decoder in display order, where
++ * timestamps increase, so the earliest still-pending input timestamp belongs
++ * to this picture, also when the stream reorders B-pictures.
++ */
++static bool vdec_msm8226_earliest_ts(struct venus_inst *inst, u64 *ts_us)
++{
++	int i, best = -1;
++
++	for (i = 0; i < ARRAY_SIZE(inst->tss); i++) {
++		if (!inst->tss[i].used)
++			continue;
++		if (best < 0 || inst->tss[i].ts_us < inst->tss[best].ts_us)
++			best = i;
++	}
++	if (best < 0)
++		return false;
++	*ts_us = inst->tss[best].ts_us;
++	return true;
++}
++
+ static void vdec_buf_done(struct venus_inst *inst, unsigned int buf_type,
+ 			  u32 tag, u32 bytesused, u32 data_offset, u32 flags,
+ 			  u32 hfi_flags, u64 timestamp_us)
+@@ -1434,6 +1621,17 @@ static void vdec_buf_done(struct venus_inst *inst, unsigned int buf_type,
+ 	vbuf->field = V4L2_FIELD_NONE;
+ 	vb = &vbuf->vb2_buf;
+ 
++	if (type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE && IS_V1(inst->core) && bytesused &&
++	    !timestamp_us && !(flags & V4L2_BUF_FLAG_LAST) &&
++	    of_device_is_compatible(inst->core->dev->of_node, "qcom,msm8226-venus")) {
++		u64 earliest;
++
++		dev_dbg(inst->core->dev_dec, "decoder capture tag %u without firmware timestamp, hfi flags %#x\n",
++			tag, hfi_flags);
++		if (vdec_msm8226_earliest_ts(inst, &earliest))
++			timestamp_us = earliest;
++	}
++
+ 	if (type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE) {
+ 		vb2_set_plane_payload(vb, 0, bytesused);
+ 		vb->planes[0].data_offset = data_offset;
+@@ -1457,7 +1655,13 @@ static void vdec_buf_done(struct venus_inst *inst, unsigned int buf_type,
+ 		vbuf->sequence = inst->sequence_out++;
+ 	}
+ 
+-	venus_helper_get_ts_metadata(inst, timestamp_us, vbuf);
++	/*
++	 * MSM8226 input completions carry no timestamp; a lookup would free
++	 * the pending entry of the picture whose input timestamp is zero.
++	 */
++	if (type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE || !IS_V1(inst->core) ||
++	    !of_device_is_compatible(inst->core->dev->of_node, "qcom,msm8226-venus"))
++		venus_helper_get_ts_metadata(inst, timestamp_us, vbuf);
+ 
+ 	if (hfi_flags & HFI_BUFFERFLAG_READONLY)
+ 		venus_helper_acquire_buf_ref(vbuf);
+@@ -1482,9 +1686,27 @@ static void vdec_event_change(struct venus_inst *inst,
+ 		.u.src_change.changes = V4L2_EVENT_SRC_CH_RESOLUTION };
+ 	struct device *dev = inst->core->dev_dec;
+ 	struct v4l2_format format = {};
++	bool retain_resources;
+ 
+ 	mutex_lock(&inst->lock);
+ 
++	/* The firmware confirming the geometry reported at capture-first startup. */
++	if (inst->capture_first && sufficient &&
++	    inst->codec_state == VENUS_DEC_STATE_DECODING &&
++	    ev_data->width == inst->out_width && ev_data->height == inst->out_height &&
++	    ev_data->bit_depth == inst->bit_depth) {
++		dev_dbg(dev, "decoder capture first: firmware confirmed %ux%u\n",
++			ev_data->width, ev_data->height);
++		mutex_unlock(&inst->lock);
++		return;
++	}
++
++	/* Continue-data-transfer is active and the registered geometry still matches. */
++	retain_resources = sufficient && inst->codec_state == VENUS_DEC_STATE_INIT &&
++		inst->opb_buftype == HFI_BUFFER_OUTPUT && vdec_use_msm8226_fw_capture_size(inst) &&
++		inst->out_width == ev_data->width && inst->out_height == ev_data->height &&
++		inst->bit_depth == ev_data->bit_depth;
++
+ 	format.type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
+ 	format.fmt.pix_mp.pixelformat = inst->fmt_cap->pixfmt;
+ 	format.fmt.pix_mp.width = ev_data->width;
+@@ -1535,6 +1757,14 @@ static void vdec_event_change(struct venus_inst *inst,
+ 	switch (inst->codec_state) {
+ 	case VENUS_DEC_STATE_INIT:
+ 		inst->codec_state = VENUS_DEC_STATE_CAPTURE_SETUP;
++		/*
++		 * The MSM8226 firmware faults when it receives more coded data
++		 * after the first sequence event but before any capture buffer
++		 * is registered. Hold coded input until capture has started.
++		 */
++		if (IS_V1(inst->core) &&
++		    of_device_is_compatible(inst->core->dev->of_node, "qcom,msm8226-venus"))
++			inst->hold_coded_input = true;
+ 		break;
+ 	case VENUS_DEC_STATE_DECODING:
+ 	case VENUS_DEC_STATE_DRAIN:
+@@ -1560,8 +1790,8 @@ static void vdec_event_change(struct venus_inst *inst,
+ 			dev_dbg(dev, VDBGH "flush output error %d\n", ret);
+ 	}
+ 
+-	inst->next_buf_last = true;
+-	inst->reconfig = true;
++	inst->next_buf_last = !retain_resources;
++	inst->reconfig = !retain_resources;
+ 	v4l2_event_queue_fh(&inst->fh, &ev);
+ 	wake_up(&inst->reconf_wait);
+ 
